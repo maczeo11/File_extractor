@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Text Extractor</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <h1>Universal Text Extractor</h1>
+                <button class="settings-toggle" id="toggleConfig" title="Server Settings">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+            </div>
+            
+            <div class="config-panel collapsed" id="configPanel">
+                <div class="input-group">
+                    <i class="fa-solid fa-server"></i>
+                    <input type="text" id="apiUrl" placeholder="https://your-app.railway.app">
+                </div>
+            </div>
+        </header>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="icon-stack">
+                <i class="fa-regular fa-file-pdf"></i>
+                <i class="fa-regular fa-file-image"></i>
+                <i class="fa-regular fa-file-excel"></i>
+            </div>
+            <h3>Drop your file here</h3>
+            <p>Support for PDF, Images, Excel, CSV, Docx</p>
+            <button class="browse-btn">Browse Files</button>
+            <input type="file" id="fileInput">
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <div class="file-details">
+                <div class="file-icon"><i class="fa-solid fa-check"></i></div>
+                <div class="file-meta">
+                    <span id="fileName" class="name">document.pdf</span>
+                    <span class="status">Ready to extract</span>
+                </div>
+            </div>
+            <button class="remove-btn" onclick="clearFile()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <button class="action-btn" id="extractBtn">
+            <span class="btn-content">
+                <i class="fa-solid fa-bolt"></i> Extract Text
+            </span>
+            <div class="spinner" id="btnSpinner"></div>
+        </button>
+
+        <div class="results-container" id="resultsArea">
+            <div class="stats-bar">
+                <div class="stat">
+                    <span class="label">TYPE</span>
+                    <span class="value badge-type" id="resType">PDF</span>
+                </div>
+                <div class="stat">
+                    <span class="label">TIME</span>
+                    <span class="value badge-time" id="resTime">0ms</span>
+                </div>
+            </div>
+            <div id="resultsList" class="results-list"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
