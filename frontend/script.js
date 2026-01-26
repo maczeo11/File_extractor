@@ -1,5 +1,5 @@
 
-const HARDCODED_API_URL = "https://text-extractor.onrender.com";
+const HARDCODED_API_URL = "https://file-extractor.onrender.com";
 
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
@@ -77,7 +77,7 @@ window.clearFile = function() {
 extractBtn.addEventListener('click', async () => {
     if (!currentFile) return;
 
-    let rawUrl = apiUrlInput.value.trim() || HARDCODED_API_URL || "https://file-extractor.onrender.com/docs";
+    let rawUrl = apiUrlInput.value.trim() || HARDCODED_API_URL || "https://file-extractor.onrender.com/";
     let baseUrl = rawUrl.replace(/\/$/, "");
     const endpoint = `${baseUrl}/api/extract`;
 
