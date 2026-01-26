@@ -1,8 +1,7 @@
 # 1. Use Python 3.9
 FROM python:3.9-slim
 
-# 2. Install Tesseract and system tools (The "Engine")
-# This is the Linux equivalent of the .exe installer
+# 2. Install Tesseract and system tools
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libmagic1 \
@@ -17,5 +16,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 4. Copy your code
 COPY . .
 
-# 5. Run the app
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 5. Run the app (Updated to use Railway's PORT)
+# We use "sh -c" to access the environment variable ${PORT}
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
