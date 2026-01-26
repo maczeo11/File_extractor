@@ -13,12 +13,10 @@ const configPanel = document.getElementById('configPanel');
 
 let currentFiles = [];
 
-/* ---------- Settings ---------- */
 toggleConfig.addEventListener('click', () => {
     configPanel.classList.toggle('collapsed');
 });
 
-/* ---------- Drag & Drop ---------- */
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
     dropZone.addEventListener(e, ev => ev.preventDefault());
     document.body.addEventListener(e, ev => ev.preventDefault());
@@ -34,7 +32,6 @@ fileInput.addEventListener('change', e => {
     handleFiles(e.target.files);
 });
 
-/* ---------- File Handling ---------- */
 function handleFiles(files) {
     if (files.length > 5) {
         alert("Maximum 5 files allowed!");
@@ -59,7 +56,6 @@ window.clearFiles = function () {
     resultsArea.style.display = 'none';
 };
 
-/* ---------- Extract ---------- */
 extractBtn.addEventListener('click', async () => {
     if (currentFiles.length === 0) return;
 
@@ -95,7 +91,6 @@ extractBtn.addEventListener('click', async () => {
     }
 });
 
-/* ---------- UI Helpers ---------- */
 function setLoading(state) {
     extractBtn.disabled = state;
     btnSpinner.style.display = state ? 'block' : 'none';
