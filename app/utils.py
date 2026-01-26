@@ -2,22 +2,39 @@ import cv2
 import numpy as np
 from PIL import Image
 import io
+import os
 
-def preprocess_image_for_ocr(image_bytes: bytes) -> Image.Image:
-    """
-    Converts raw bytes -> Grayscale -> Thresholded Image
-    Drastically improves Tesseract accuracy.
-    """
-    # 1. Convert bytes to numpy array
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+# ---------- IMAGE PREPROCESSING (USED BY OCR) ----------
+def preprocess_image_for_ocr(image_bytes: bytes):
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    img = np.array(image)
 
-    # 2. Grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.threshold(gray, 0, 255,
+                          cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
-    # 3. Threshold (Binarization) using Otsu's method
-    # This removes shadows and makes text strictly black/white
-    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return gray
 
-    # 4. Convert back to PIL Image for Tesseract
-    return Image.fromarray(thresh)
+
+# ---------- FILE TYPE DETECTION ----------
+def detect_file_type(file_bytes: bytes, filename: str) -> str:
+    """
+    Detect file type using filename extension.
+    """
+
+    ext = os.path.splitext(filename)[1].lower()
+
+    if ext == ".pdf":
+        return "pdf"
+    elif ext in [".docx"]:
+        return "docx"
+    elif ext in [".jpg", ".jpeg", ".png"]:
+        return "image"
+    elif ext in [".xls", ".xlsx"]:
+        return "excel"
+    elif ext == ".csv":
+        return "csv"
+    elif ext in [".html", ".htm"]:
+        return "html"
+    else:
+        return "unknown"

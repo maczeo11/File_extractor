@@ -1,22 +1,62 @@
-from bs4 import BeautifulSoup
-from app.extractors.base import BaseExtractor
-from app.schemas import ExtractedUnit, Location
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from typing import List
+from app.utils import detect_file_type
+from app.extractors.documents import PDFExtractor, WordExtractor
+from app.extractors.images import ImageExtractor
+from app.extractors.tables import TableExtractor
+from app.extractors.html import HTMLExtractor
 
-class HTMLExtractor(BaseExtractor):
-    def extract(self):
-        soup = BeautifulSoup(self.file_bytes, 'html.parser')
-        
-        # Security: Remove JS and CSS
-        for script in soup(["script", "style", "meta", "noscript"]):
-            script.decompose()
-        
-        # Get text with newlines
-        text = soup.get_text(separator='\n')
-        
-        lines = [line.strip() for line in text.splitlines() if line.strip()]
-        
-        return [ExtractedUnit(
-            text=line,
-            source="html_body",
-            location=Location(type="row", number=i+1)
-        ) for i, line in enumerate(lines)]
+router = APIRouter()
+
+
+def get_extractor(file_bytes: bytes, filename: str):
+    ftype = detect_file_type(file_bytes, filename)
+
+    if ftype == "pdf":
+        return PDFExtractor(file_bytes, filename)
+
+    elif ftype == "docx":
+        return WordExtractor(file_bytes, filename)
+
+    elif ftype == "image":
+        return ImageExtractor(file_bytes, filename)
+
+    elif ftype == "excel":
+        return TableExtractor(file_bytes, filename)
+
+    elif ftype == "csv":
+        return TableExtractor(file_bytes, filename, is_csv=True)
+
+    elif ftype == "html":
+        return HTMLExtractor(file_bytes, filename)
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {filename}"
+        )
+
+
+@router.post("/extract")
+async def extract_files(files: List[UploadFile] = File(...)):
+
+    if len(files) > 5:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum 5 files allowed"
+        )
+
+    results = []
+
+    for file in files:
+        file_bytes = await file.read()
+        extractor = get_extractor(file_bytes, file.filename)
+        content = extractor.extract()
+
+        results.append({
+            "filename": file.filename,
+            "file_type": detect_file_type(file_bytes, file.filename),
+            "content": content
+        })
+
+    return {"results": results}

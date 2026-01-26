@@ -1,6 +1,3 @@
-// --- CONFIGURATION ---
-const HARDCODED_API_URL = ""; 
-
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const fileInfo = document.getElementById('fileInfo');
@@ -14,144 +11,111 @@ const apiUrlInput = document.getElementById('apiUrl');
 const toggleConfig = document.getElementById('toggleConfig');
 const configPanel = document.getElementById('configPanel');
 
-let currentFile = null;
+let currentFiles = [];
 
-// Settings Toggle
+/* ---------- Settings ---------- */
 toggleConfig.addEventListener('click', () => {
     configPanel.classList.toggle('collapsed');
 });
 
-// Drag & Drop Handlers
-dropZone.addEventListener('click', (e) => {
-    if (e.target !== dropZone && !e.target.classList.contains('browse-btn')) return;
-    fileInput.click();
+/* ---------- Drag & Drop ---------- */
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
+    dropZone.addEventListener(e, ev => ev.preventDefault());
+    document.body.addEventListener(e, ev => ev.preventDefault());
 });
 
-// Prevent defaults for all drag events to ensure drop works
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, preventDefaults, false);
-    document.body.addEventListener(eventName, preventDefaults, false);
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('drop', e => {
+    handleFiles(e.dataTransfer.files);
 });
 
-function preventDefaults(e) {
-    e.preventDefault();
-    e.stopPropagation();
-}
-
-['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+fileInput.addEventListener('change', e => {
+    handleFiles(e.target.files);
 });
 
-['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
-});
+/* ---------- File Handling ---------- */
+function handleFiles(files) {
+    if (files.length > 5) {
+        alert("Maximum 5 files allowed!");
+        return;
+    }
 
-dropZone.addEventListener('drop', (e) => {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    if (files.length) handleFile(files[0]);
-});
+    currentFiles = Array.from(files);
 
-fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length) handleFile(e.target.files[0]);
-});
-
-function handleFile(file) {
-    currentFile = file;
-    fileName.textContent = file.name;
+    fileName.textContent = currentFiles.map(f => f.name).join(", ");
     dropZone.style.display = 'none';
     fileInfo.style.display = 'flex';
     extractBtn.style.display = 'block';
     resultsArea.style.display = 'none';
 }
 
-window.clearFile = function() {
-    currentFile = null;
-    fileInput.value = '';
+window.clearFiles = function () {
+    currentFiles = [];
+    fileInput.value = "";
     dropZone.style.display = 'block';
     fileInfo.style.display = 'none';
     extractBtn.style.display = 'none';
     resultsArea.style.display = 'none';
-}
+};
 
+/* ---------- Extract ---------- */
 extractBtn.addEventListener('click', async () => {
-    if (!currentFile) return;
+    if (currentFiles.length === 0) return;
 
-    let rawUrl = apiUrlInput.value.trim() || HARDCODED_API_URL || "http://localhost:8000";
-    let baseUrl = rawUrl.replace(/\/$/, "");
+    const baseUrl = (apiUrlInput.value || "http://localhost:8000").replace(/\/$/, "");
     const endpoint = `${baseUrl}/api/extract`;
 
-    setLoading(true);
-    resultsArea.style.display = 'none';
-    resultsList.innerHTML = '';
-
     const formData = new FormData();
-    formData.append('file', currentFile);
+    currentFiles.forEach(file => {
+        formData.append("files", file);
+    });
+
+    setLoading(true);
+    resultsList.innerHTML = "";
 
     try {
-        const response = await fetch(endpoint, { method: 'POST', body: formData });
-        
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(err.detail || 'Extraction failed');
+        const res = await fetch(endpoint, {
+            method: "POST",
+            body: formData
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Extraction failed");
         }
 
-        const data = await response.json();
-        renderResults(data);
+        const data = await res.json();
+        renderResults(data.results);
 
-    } catch (error) {
-        alert(`Error: ${error.message}\n\nServer: ${baseUrl}`);
-        console.error(error);
+    } catch (err) {
+        alert(err.message);
     } finally {
         setLoading(false);
     }
 });
 
-function setLoading(isLoading) {
-    extractBtn.disabled = isLoading;
-    if (isLoading) {
-        btnSpinner.style.display = 'block';
-        btnContent.style.opacity = '0';
-    } else {
-        btnSpinner.style.display = 'none';
-        btnContent.style.opacity = '1';
-    }
+/* ---------- UI Helpers ---------- */
+function setLoading(state) {
+    extractBtn.disabled = state;
+    btnSpinner.style.display = state ? 'block' : 'none';
+    btnContent.style.opacity = state ? 0 : 1;
 }
 
-function renderResults(data) {
-    document.getElementById('resType').textContent = (data.file_type || 'UNKNOWN').toUpperCase();
-    document.getElementById('resTime').textContent = `${data.processing_time_ms}ms`;
-
-    const grouped = {};
-    const sortedContent = data.content.sort((a, b) => (a.location?.number || 0) - (b.location?.number || 0));
-
-    sortedContent.forEach(unit => {
-        let key = "Extracted Text";
-        if (unit.location.type === 'page') key = `Page ${unit.location.number}`;
-        else if (unit.location.type === 'row' && unit.location.sheet) key = `Sheet: ${unit.location.sheet}`;
-        
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(unit.text);
+function renderResults(results) {
+    results.forEach(file => {
+        const text = file.content.map(c => c.text).join("\n\n");
+        createCard(file.filename, text);
     });
-
-    const keys = Object.keys(grouped);
-    if (keys.length === 0) {
-        resultsList.innerHTML = `<div style="text-align:center; color: #64748b;">No text found in this file.</div>`;
-    } else {
-        keys.forEach(groupName => {
-            const textContent = grouped[groupName].join('\n\n');
-            createPageCard(groupName, textContent);
-        });
-    }
     resultsArea.style.display = 'block';
 }
 
-function createPageCard(title, text) {
-    const card = document.createElement('div');
-    card.className = 'page-card';
+function createCard(title, text) {
+    const card = document.createElement("div");
+    card.className = "page-card";
     card.innerHTML = `
         <div class="page-header">
-            <span class="page-title"><i class="fa-regular fa-file-lines"></i> &nbsp; ${title}</span>
+            <span class="page-title">${title}</span>
             <span class="page-badge">${text.length} chars</span>
         </div>
         <div class="page-content">${text}</div>
