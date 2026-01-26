@@ -1,16 +1,13 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
-# --- OS Specific Dependencies ---
-python-magic-bin; sys_platform == 'win32'
-python-magic; sys_platform != 'win32'
-# --------------------------------
+python-magic
 pdfplumber
 python-docx
-pandas
-openpyxl
-beautifulsoup4
 pytesseract
-Pillow
-opencv-python-headless
+opencv-python-headless  <-- CHANGED
 numpy
+pillow
+pandas
+beautifulsoup4
+pydantic
