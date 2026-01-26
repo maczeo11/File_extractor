@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Universal Text Extractor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>📄 Universal Text Extraction App</h1>
+    <p class="subtitle">
+        Upload documents (PDF, DOCX, Image, CSV, HTML) and extract text in a standardized format.
+    </p>
+
+    <div class="card">
+        <input type="file" id="fileInput">
+        <button onclick="uploadFile()">🚀 Extract Text</button>
+    </div>
+
+    <div class="loader" id="loader">Processing...</div>
+
+    <div class="result">
+        <h3>📌 Extracted Text</h3>
+        <textarea id="output" rows="12" readonly></textarea>
+
+        <div class="actions">
+            <button onclick="downloadJSON()">⬇️ Download JSON</button>
+        </div>
+
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
