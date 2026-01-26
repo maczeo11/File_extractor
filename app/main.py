@@ -1,5 +1,8 @@
-import magic
+import magic   # <--- Added this as requested
+import sys
 import time
+import pytesseract
+import os
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,9 +12,38 @@ from app.extractors.tables import TableExtractor
 from app.extractors.images import ImageExtractor
 from app.extractors.web import HTMLExtractor
 
+# --- 🛠️ TESSERACT CONFIGURATION (FINAL FIX) ---
+if sys.platform.startswith('win'):
+    # 1. Base Installation Path
+    tesseract_base_path = r'C:\Program Files\Tesseract-OCR'
+    
+    # 2. Path to the Executable
+    executable_path = os.path.join(tesseract_base_path, 'tesseract.exe')
+    
+    # 3. Path to the Data Folder (tessdata)
+    # ⚠️ CRITICAL: This is where 'eng.traineddata' lives
+    tessdata_path = os.path.join(tesseract_base_path, 'tessdata')
+
+    if os.path.exists(executable_path):
+        pytesseract.pytesseract.tesseract_cmd = executable_path
+        
+        # ⚠️ THE FIX: Point TESSDATA_PREFIX directly to the 'tessdata' folder
+        # This solves the "Error opening data file..." crash
+        os.environ['TESSDATA_PREFIX'] = tessdata_path
+        
+        print(f"✅ DEBUG: Windows Tesseract configured.")
+        print(f"   - Exe: {executable_path}")
+        print(f"   - Data: {tessdata_path}")
+    else:
+        print("⚠️ WARNING: Tesseract.exe not found. Images will fail.")
+        print("   Did you install it from the README link?")
+
+else:
+    print(f"✅ DEBUG: Running on Linux/Cloud. Using system Tesseract.")
+
+# --- APP DEFINITION ---
 app = FastAPI(title="Universal Text Extractor API")
 
-# Enable CORS for frontend connection
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
