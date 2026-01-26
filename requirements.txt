@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+python-multipart
+python-magic
+pdfplumber
+python-docx
+pytesseract
+opencv-python
+numpy
+pillow
+pandas
+beautifulsoup4
+pydantic
