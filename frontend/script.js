@@ -1,5 +1,5 @@
-// --- CONFIGURATION ---
-const HARDCODED_API_URL = ""; 
+
+const HARDCODED_API_URL = "https://text-extractor.onrender.com";
 
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
@@ -27,7 +27,7 @@ dropZone.addEventListener('click', (e) => {
     fileInput.click();
 });
 
-// Prevent defaults for all drag events to ensure drop works
+// Prevent defaults for all drag events
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
     dropZone.addEventListener(eventName, preventDefaults, false);
     document.body.addEventListener(eventName, preventDefaults, false);
@@ -77,7 +77,7 @@ window.clearFile = function() {
 extractBtn.addEventListener('click', async () => {
     if (!currentFile) return;
 
-    let rawUrl = apiUrlInput.value.trim() || HARDCODED_API_URL || "http://localhost:8000";
+    let rawUrl = apiUrlInput.value.trim() || HARDCODED_API_URL || "https://file-extractor.onrender.com/docs";
     let baseUrl = rawUrl.replace(/\/$/, "");
     const endpoint = `${baseUrl}/api/extract`;
 
@@ -100,7 +100,7 @@ extractBtn.addEventListener('click', async () => {
         renderResults(data);
 
     } catch (error) {
-        alert(`Error: ${error.message}\n\nServer: ${baseUrl}`);
+        alert(`Error: ${error.message}\n\nTarget Server: ${baseUrl}`);
         console.error(error);
     } finally {
         setLoading(false);
