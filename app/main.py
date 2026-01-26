@@ -48,12 +48,17 @@ def extract_plain_text(file: UploadFile):
     extractor = extractor_class(file_bytes, file.filename)
     units = extractor.extract()
 
-    # ✅ ONLY extracted text
-    extracted_text = "\n\n".join([unit.text for unit in units])
+    page_wise_content = []
+
+    for unit in units:
+        page_wise_content.append({
+        "source": unit.source,   # page_1, page_2, row, etc.
+        "text": unit.text
+    })
 
     return {
-        "filename": file.filename,
-        "extracted_text": extracted_text
+    "filename": file.filename,
+    "pages": page_wise_content
     }
 
 # 🔹 FULL JSON RESPONSE (for download)

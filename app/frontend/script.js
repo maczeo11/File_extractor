@@ -21,7 +21,16 @@ async function uploadFile() {
     });
 
     const data = await response.json();
-    output.value = data.extracted_text;
+    let formattedText = "";
+
+    data.pages.forEach((item, index) => {
+    formattedText += `📄 ${item.source.toUpperCase()}\n`;
+    formattedText += "----------------------------------------\n";
+    formattedText += item.text + "\n\n";
+    });
+
+    output.value = formattedText;
+
 }
 
 async function downloadJSON() {
