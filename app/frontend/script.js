@@ -1,56 +1,65 @@
-let lastUploadedFile = null;
+let lastResponseJSON = null;
 
 async function uploadFile() {
     const fileInput = document.getElementById("fileInput");
     const output = document.getElementById("output");
+    const resultBox = document.getElementById("resultBox");
+    const button = document.getElementById("extractBtn");
+    const spinner = button.querySelector(".spinner");
+    const btnText = button.querySelector(".btn-text");
 
     if (fileInput.files.length === 0) {
-        alert("Please select a file");
+        alert("Please select a file first");
         return;
     }
 
-    lastUploadedFile = fileInput.files[0];
     const formData = new FormData();
-    formData.append("file", lastUploadedFile);
+    formData.append("file", fileInput.files[0]);
 
-    output.value = "Extracting text...";
+    // loading state
+    btnText.style.display = "none";
+    spinner.style.display = "inline-block";
+    button.disabled = true;
 
-    const response = await fetch("http://127.0.0.1:8000/api/extract", {
-        method: "POST",
-        body: formData
-    });
+    output.textContent = "";
 
-    const data = await response.json();
-    let formattedText = "";
+    try {
+        const response = await fetch("http://127.0.0.1:8000/api/extract", {
+            method: "POST",
+            body: formData
+        });
 
-    data.pages.forEach((item, index) => {
-    formattedText += `📄 ${item.source.toUpperCase()}\n`;
-    formattedText += "----------------------------------------\n";
-    formattedText += item.text + "\n\n";
-    });
+        const data = await response.json();
+        lastResponseJSON = data;
+        let text = "";
 
-    output.value = formattedText;
+        data.pages.forEach((page, index) => {
+            text += `Page ${index + 1}\n`;
+            text += "----------------------------------------\n";
+            text += page.text + "\n\n";
+        });
 
+        output.value = text;
+
+
+    } catch (error) {
+        output.textContent = "❌ Error extracting text";
+        resultBox.classList.remove("hidden");
+    } finally {
+        spinner.style.display = "none";
+        btnText.style.display = "inline";
+        button.disabled = false;
+    }
 }
 
-async function downloadJSON() {
-    if (!lastUploadedFile) {
-        alert("Please extract a file first");
+function downloadJSON() {
+    if (!lastResponseJSON) {
+        alert("No extracted data to download");
         return;
     }
 
-    const formData = new FormData();
-    formData.append("file", lastUploadedFile);
-
-    const response = await fetch("http://127.0.0.1:8000/api/extract/json", {
-        method: "POST",
-        body: formData
-    });
-
-    const jsonData = await response.json();
-
     const blob = new Blob(
-        [JSON.stringify(jsonData, null, 2)],
+        [JSON.stringify(lastResponseJSON, null, 2)],
         { type: "application/json" }
     );
 
@@ -59,3 +68,4 @@ async function downloadJSON() {
     link.download = "extracted_output.json";
     link.click();
 }
+

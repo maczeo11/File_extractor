@@ -8,27 +8,33 @@
 <body>
 
 <div class="container">
+
     <h1>📄 Universal Text Extraction App</h1>
     <p class="subtitle">
-        Upload documents (PDF, DOCX, Image, CSV, HTML) and extract text in a standardized format.
+        Upload documents (PDF, DOCX, Image, CSV, HTML) and extract text.
     </p>
 
-    <div class="card">
+    <!-- Upload section -->
+    <div class="upload-box">
         <input type="file" id="fileInput">
-        <button onclick="uploadFile()">🚀 Extract Text</button>
+
+        <button id="extractBtn" onclick="uploadFile()">
+            <span class="btn-text">🚀 Extract Text</span>
+            <span class="spinner"></span>
+        </button>
     </div>
 
-    <div class="loader" id="loader">Processing...</div>
+    <!-- Output section -->
+    <div class="result" id="resultBox">
+    <h3>📌 Extracted Text</h3>
 
-    <div class="result">
-        <h3>📌 Extracted Text</h3>
-        <textarea id="output" rows="12" readonly></textarea>
+    <textarea id="output" readonly></textarea>
 
-        <div class="actions">
-            <button onclick="downloadJSON()">⬇️ Download JSON</button>
-        </div>
-
+    <div class="actions">
+        <button onclick="downloadJSON()">⬇️ Download JSON</button>
     </div>
+</div>
+
 </div>
 
 <script src="script.js"></script>
