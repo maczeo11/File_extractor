@@ -14,8 +14,7 @@ class TableExtractor(BaseExtractor):
         
         try:
             if self.is_csv:
-                # Basic CSV read
-                dfs = {'csv': pd.read_csv(file_io)}
+                dfs = {'csv': pd.read_csv(file_io, header=None)}
             else:
                 # Read all sheets from Excel
                 dfs = pd.read_excel(file_io, sheet_name=None)
