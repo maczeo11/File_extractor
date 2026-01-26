@@ -1,11 +1,12 @@
 fastapi
 uvicorn[standard]
 python-multipart
-python-magic
+python-magic-bin; sys_platform == 'win32'
+python-magic; sys_platform != 'win32'
 pdfplumber
 python-docx
 pytesseract
-opencv-python-headless  <-- CHANGED
+opencv-python-headless
 numpy
 pillow
 pandas
