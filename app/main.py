@@ -44,14 +44,24 @@ else:
 # --- APP DEFINITION ---
 app = FastAPI(title="Universal Text Extractor API")
 
+origins = [
+    "http://localhost",
+    "http://localhost:8000",
+    "http://localhost:3000",      # Common for React/Frontend dev
+    "http://127.0.0.1:5500",      # Common for VS Code "Live Server"
+    "http://127.0.0.1:8000",
+    "https://fileextractor-production.up.railway.app", # Your Production URL
+    "https://text-extractor.onrender.com",             # Your Render URL
+    "*"                                                # ⚠️ Allow ALL (Easiest for testing)
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],   
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  
+    allow_headers=["*"], 
 )
-
 # Strategy Map: Connects MIME types to specific logic
 EXTRACTOR_MAP = {
     # PDF

@@ -3,6 +3,7 @@ import pandas as pd
 from app.extractors.base import BaseExtractor
 from app.schemas import ExtractedUnit, Location
 
+
 class TableExtractor(BaseExtractor):
     def __init__(self, file_bytes, filename, is_csv=False):
         super().__init__(file_bytes, filename)

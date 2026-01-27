@@ -1,128 +1,173 @@
-//
-
 // --- CONFIGURATION ---
-// List all your possible servers here
+// Priority: 1. Railway, 2. Render
+// Note: Localhost is excluded from auto-check to prevent CORS errors in production.
 const CANDIDATE_URLS = [
-    "https://text-extractor.onrender.com",   // Render
-    "https://your-app.up.railway.app",       // Railway (Replace with yours)
-    "http://localhost:8000"                  // Localhost
+    "https://fileextractor-production.up.railway.app", // 🏆 Primary
+    "https://text-extractor.onrender.com"               // 🛡️ Backup
 ];
 
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const fileInfo = document.getElementById('fileInfo');
-const fileName = document.getElementById('fileName');
-const extractBtn = document.getElementById('extractBtn');
-const resultsArea = document.getElementById('resultsArea');
-const resultsList = document.getElementById('resultsList');
-const btnSpinner = document.getElementById('btnSpinner');
-const btnContent = document.querySelector('.btn-content');
-const apiUrlInput = document.getElementById('apiUrl');
-const toggleConfig = document.getElementById('toggleConfig');
-const configPanel = document.getElementById('configPanel');
+let dropZone, fileInput, fileInfo, fileName, extractBtn, resultsArea, resultsList, btnSpinner, btnContent, apiUrlInput, toggleConfig, configPanel;
+let currentFiles = []; // 🟢 Supports Multiple Files
+let activeApiUrl = ""; 
 
-let currentFile = null;
-let activeApiUrl = ""; // This will hold the winner
+// --- INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Get DOM Elements
+    dropZone = document.getElementById('dropZone');
+    fileInput = document.getElementById('fileInput');
+    fileInfo = document.getElementById('fileInfo');
+    fileName = document.getElementById('fileName');
+    extractBtn = document.getElementById('extractBtn');
+    resultsArea = document.getElementById('resultsArea');
+    resultsList = document.getElementById('resultsList');
+    btnSpinner = document.getElementById('btnSpinner');
+    btnContent = document.querySelector('.btn-content');
+    apiUrlInput = document.getElementById('apiUrl');
+    toggleConfig = document.getElementById('toggleConfig');
+    configPanel = document.getElementById('configPanel');
 
-// --- 🚀 AUTO-DETECT ACTIVE SERVER ---
+    // 2. Attach Listeners
+    setupEventListeners();
+
+    // 3. Start Server Hunt
+    findActiveBackend();
+});
+
+// --- 🚀 SMART SERVER DETECTION ---
 async function findActiveBackend() {
-    const statusIcon = document.querySelector('.fa-server'); // Icon in config panel
-    
-    // UI: Show we are searching
-    apiUrlInput.placeholder = "Searching for active server...";
+    const statusIcon = document.querySelector('.fa-server'); 
+    apiUrlInput.placeholder = "Connecting to server...";
     statusIcon.style.color = "orange";
 
-    // Create a list of fetch promises
     const checks = CANDIDATE_URLS.map(async (url) => {
         try {
-            // We use the root "/" endpoint which returns {"status": "active"}
-            // Timeout after 3 seconds so we don't wait forever
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
             
-            const response = await fetch(`${url}/`, { 
-                method: 'GET', 
-                signal: controller.signal 
-            });
+            // Check Root "/" endpoint (Backend must have @app.get("/"))
+            const response = await fetch(`${url}/`, { method: 'GET', signal: controller.signal });
             clearTimeout(timeoutId);
 
-            if (response.ok) {
-                return url; // Return the winning URL
-            }
-            throw new Error("Not 200 OK");
+            if (response.ok) return url;
+            throw new Error(`Status: ${response.status}`);
         } catch (err) {
-            throw err; // This server is down/unreachable
+            throw err; 
         }
     });
 
     try {
-        // Promise.any returns the FIRST successful promise (the fastest server)
         const winner = await Promise.any(checks);
-        
-        // Winner found!
         activeApiUrl = winner;
-        apiUrlInput.value = winner; // Auto-fill the input
-        
-        // UI: Green Success
+        apiUrlInput.value = winner; 
         statusIcon.style.color = "#10b981"; // Green
         console.log(`✅ Connected to: ${winner}`);
-        
-        // Optional: Show a toast or small text
-        // alert(`Connected to ${winner}`); 
-
     } catch (error) {
-        // All servers failed
         console.error("❌ No active backend found.");
         statusIcon.style.color = "#ef4444"; // Red
-        apiUrlInput.placeholder = "No server found. Enter manually.";
+        apiUrlInput.value = ""; 
+        apiUrlInput.placeholder = "Enter URL manually";
     }
 }
 
-// Run immediately on load
-document.addEventListener('DOMContentLoaded', findActiveBackend);
+// --- EVENT LISTENERS ---
+function setupEventListeners() {
+    toggleConfig.addEventListener('click', () => configPanel.classList.toggle('collapsed'));
 
+    // Drag & Drop / Browse Logic
+    dropZone.addEventListener('click', (e) => {
+        if (e.target !== fileInput && !e.target.classList.contains('browse-btn')) {
+            fileInput.value = ''; // 🟢 Clear input to allow re-selecting same file
+            fileInput.click();
+        }
+    });
+    
+    // Explicit browse button support
+    const browseBtn = dropZone.querySelector('.browse-btn');
+    if(browseBtn) {
+        browseBtn.addEventListener('click', (e) => {
+             e.stopPropagation();
+             fileInput.value = '';
+             fileInput.click();
+        });
+    }
 
-// --- EXISTING LOGIC BELOW (No major changes needed) ---
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) handleFiles(e.target.files);
+    });
 
-// Settings Toggle
-toggleConfig.addEventListener('click', () => {
-    configPanel.classList.toggle('collapsed');
-});
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+    });
 
-// Drag & Drop Handlers
-dropZone.addEventListener('click', (e) => {
-    if (e.target !== dropZone && !e.target.classList.contains('browse-btn')) return;
-    fileInput.click();
-});
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+    });
 
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, preventDefaults, false);
-    document.body.addEventListener(eventName, preventDefaults, false);
-});
+    dropZone.addEventListener('dragleave', (e) => {
+        if (dropZone.contains(e.relatedTarget)) return;
+        dropZone.classList.remove('drag-over');
+    });
 
-function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    dropZone.addEventListener('drop', (e) => {
+        dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+    });
 
-['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
-});
+    // --- BATCH EXTRACTION QUEUE ---
+    extractBtn.addEventListener('click', async () => {
+        if (currentFiles.length === 0) return;
 
-['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
-});
+        let rawUrl = apiUrlInput.value.trim() || activeApiUrl;
+        if (!rawUrl) {
+            alert("No server connected! Please enter a URL in settings.");
+            return;
+        }
 
-dropZone.addEventListener('drop', (e) => {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    if (files.length) handleFile(files[0]);
-});
+        let baseUrl = rawUrl.replace(/\/$/, "");
+        const endpoint = `${baseUrl}/api/extract`;
 
-fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length) handleFile(e.target.files[0]);
-});
+        setLoading(true);
+        resultsArea.style.display = 'block'; 
+        resultsList.innerHTML = ''; // Clear old results
 
-function handleFile(file) {
-    currentFile = file;
-    fileName.textContent = file.name;
+        // 🔄 Process Loop: File by File
+        for (let i = 0; i < currentFiles.length; i++) {
+            const file = currentFiles[i];
+            
+            // Update UI
+            btnContent.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing ${i + 1}/${currentFiles.length}...`;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(endpoint, { method: 'POST', body: formData });
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Server Error');
+                }
+                const data = await response.json();
+                renderResultCard(data, file.name);
+            } catch (error) {
+                renderErrorCard(file.name, error.message);
+            }
+        }
+
+        // Finish State
+        btnContent.innerHTML = `<i class="fa-solid fa-check"></i> Done`;
+        
+        // 🟢 Reset Logic: After 2s, user can upload again
+        setTimeout(() => {
+            setLoading(false);
+            btnContent.innerHTML = `<i class="fa-solid fa-bolt"></i> Extract Text`;
+        }, 2000);
+    });
+}
+
+// --- HELPER FUNCTIONS ---
+function handleFiles(files) {
+    currentFiles = Array.from(files);
+    fileName.textContent = `${currentFiles.length} file(s) selected`;
     dropZone.style.display = 'none';
     fileInfo.style.display = 'flex';
     extractBtn.style.display = 'block';
@@ -130,47 +175,13 @@ function handleFile(file) {
 }
 
 window.clearFile = function() {
-    currentFile = null;
-    fileInput.value = '';
+    currentFiles = [];
+    if (fileInput) fileInput.value = '';
     dropZone.style.display = 'block';
     fileInfo.style.display = 'none';
     extractBtn.style.display = 'none';
     resultsArea.style.display = 'none';
 }
-
-extractBtn.addEventListener('click', async () => {
-    if (!currentFile) return;
-
-    // Use the auto-detected URL, or the Input, or default to localhost
-    let rawUrl = apiUrlInput.value.trim() || activeApiUrl || "http://localhost:8000";
-    let baseUrl = rawUrl.replace(/\/$/, "");
-    const endpoint = `${baseUrl}/api/extract`;
-
-    setLoading(true);
-    resultsArea.style.display = 'none';
-    resultsList.innerHTML = '';
-
-    const formData = new FormData();
-    formData.append('file', currentFile);
-
-    try {
-        const response = await fetch(endpoint, { method: 'POST', body: formData });
-        
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(err.detail || 'Extraction failed');
-        }
-
-        const data = await response.json();
-        renderResults(data);
-
-    } catch (error) {
-        alert(`Error: ${error.message}\n\nAttempted Server: ${baseUrl}`);
-        console.error(error);
-    } finally {
-        setLoading(false);
-    }
-});
 
 function setLoading(isLoading) {
     extractBtn.disabled = isLoading;
@@ -183,43 +194,39 @@ function setLoading(isLoading) {
     }
 }
 
-function renderResults(data) {
-    document.getElementById('resType').textContent = (data.file_type || 'UNKNOWN').toUpperCase();
-    document.getElementById('resTime').textContent = `${data.processing_time_ms}ms`;
-
-    const grouped = {};
-    const sortedContent = data.content.sort((a, b) => (a.location?.number || 0) - (b.location?.number || 0));
-
-    sortedContent.forEach(unit => {
-        let key = "Extracted Text";
-        if (unit.location.type === 'page') key = `Page ${unit.location.number}`;
-        else if (unit.location.type === 'row' && unit.location.sheet) key = `Sheet: ${unit.location.sheet}`;
-        
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(unit.text);
-    });
-
-    const keys = Object.keys(grouped);
-    if (keys.length === 0) {
-        resultsList.innerHTML = `<div style="text-align:center; color: #64748b;">No text found in this file.</div>`;
-    } else {
-        keys.forEach(groupName => {
-            const textContent = grouped[groupName].join('\n\n');
-            createPageCard(groupName, textContent);
-        });
-    }
-    resultsArea.style.display = 'block';
-}
-
-function createPageCard(title, text) {
+function renderResultCard(data, originalName) {
+    // Combine text chunks
+    const fullText = data.content.map(u => u.text).join('\n\n');
+    
     const card = document.createElement('div');
     card.className = 'page-card';
+    card.style.borderLeft = "4px solid #10b981"; // Green success border
+    
+    // Truncate logic for UI (Full text is in the HTML though)
+    const displayText = fullText.length > 2000 
+        ? fullText.substring(0, 2000) + "\n\n... [Text truncated for display]" 
+        : fullText;
+
     card.innerHTML = `
         <div class="page-header">
-            <span class="page-title"><i class="fa-regular fa-file-lines"></i> &nbsp; ${title}</span>
-            <span class="page-badge">${text.length} chars</span>
+            <span class="page-title"><i class="fa-regular fa-file-lines"></i> ${originalName}</span>
+            <span class="page-badge">${data.processing_time_ms}ms</span>
         </div>
-        <div class="page-content">${text}</div>
+        <div class="page-content">${displayText}</div>
+    `;
+    resultsList.appendChild(card);
+}
+
+function renderErrorCard(filename, errorMsg) {
+    const card = document.createElement('div');
+    card.className = 'page-card';
+    card.style.borderLeft = "4px solid #ef4444"; // Red error border
+    card.innerHTML = `
+        <div class="page-header">
+            <span class="page-title" style="color: #ef4444">${filename}</span>
+            <span class="page-badge">FAILED</span>
+        </div>
+        <div class="page-content">Error: ${errorMsg}. Please check file format or server logs.</div>
     `;
     resultsList.appendChild(card);
 }

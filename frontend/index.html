@@ -6,99 +6,6 @@
     <title>Universal Text Extractor</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* --- DYNAMIC STYLES --- */
-        .queue-container {
-            display: none;
-            flex-direction: column;
-            gap: 0.5rem;
-            width: 100%;
-            margin-top: 1rem; 
-        }
-        .queue-item {
-            background: rgba(16, 185, 129, 0.1); /* Glass Green */
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            border-radius: 0.5rem;
-            padding: 0.75rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .queue-item.processing { border-color: var(--accent); background: rgba(99, 102, 241, 0.1); }
-        .queue-item.done { border-color: #10b981; background: rgba(16, 185, 129, 0.1); }
-        .queue-item.error { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
-        
-        .q-name { font-weight: 600; font-size: 0.9rem; }
-        .q-status { font-size: 0.8rem; font-family: 'Monaco', monospace; opacity: 0.8; }
-        .status-processing { color: var(--accent); font-weight: bold; }
-        .status-done { color: #10b981; }
-        .status-error { color: #ef4444; }
-
-        .action-btn { margin-top: 1.5rem; }
-
-        /* --- RESULT BLOCKS --- */
-        .file-result-block {
-            background: rgba(0, 0, 0, 0.2); 
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 0.75rem;
-            margin-bottom: 2rem;
-            padding: 1.5rem;
-        }
-        .file-result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding-bottom: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .fr-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: inherit;
-        }
-        .fr-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 1rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .fr-type { background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3); }
-        .fr-time { background: rgba(255, 255, 255, 0.05); color: #9ca3af; }
-        
-        /* --- MISSING PAGE CARD STYLES (Added Back) --- */
-        .page-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 0.5rem;
-            margin-bottom: 1rem;
-            padding: 1rem;
-        }
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .page-title {
-            font-weight: 600;
-            color: var(--accent);
-            font-size: 0.95rem;
-        }
-        .page-content {
-            white-space: pre-wrap; /* Preserves text formatting */
-            font-family: inherit;
-            font-size: 0.9rem;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .empty-msg { text-align: center; color: #9ca3af; padding: 1rem; font-style: italic; }
-    </style>
 </head>
 <body>
 
@@ -114,10 +21,10 @@
             <div class="config-panel collapsed" id="configPanel">
                 <div class="input-group">
                     <i class="fa-solid fa-server"></i>
-                    <input type="text" id="apiUrl" placeholder="http://127.0.0.1:8000">
+                    <input type="text" id="apiUrl" placeholder="Connecting...">
                 </div>
-                <small style="color: var(--text-secondary); font-size: 0.8rem; display: block; margin-top: 5px;">
-                    Enter local URL (e.g. 127.0.0.1:8000).
+                <small style="color: #94a3b8; font-size: 0.8rem; margin-top: 5px; display:block; text-align:center;">
+                    Auto-detecting active server...
                 </small>
             </div>
         </header>
@@ -128,13 +35,25 @@
                 <i class="fa-regular fa-file-image"></i>
                 <i class="fa-regular fa-file-excel"></i>
             </div>
-            <h3>Drop your file here</h3>
+            <h3>Drop your files here</h3>
             <p>Support for PDF, Images, Excel, CSV, Docx</p>
             <button class="browse-btn">Browse Files</button>
+            
             <input type="file" id="fileInput" multiple>
         </div>
 
-        <div class="queue-container" id="queueContainer"></div>
+        <div class="file-info" id="fileInfo">
+            <div class="file-details">
+                <div class="file-icon"><i class="fa-solid fa-layer-group"></i></div>
+                <div class="file-meta">
+                    <span class="name" id="fileName">Selected Files</span>
+                    <span class="status">Ready to extract</span>
+                </div>
+            </div>
+            <button class="remove-btn" onclick="clearFile()" title="Clear Selection">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
 
         <button class="action-btn" id="extractBtn">
             <span class="btn-content"><i class="fa-solid fa-bolt"></i> Extract Text</span>
@@ -142,12 +61,6 @@
         </button>
 
         <div class="results-container" id="resultsArea">
-            <div class="stats-bar">
-                <div class="stat">
-                    <span class="label">BATCH STATUS</span>
-                    <span class="value badge-type" id="batchStatus">READY</span>
-                </div>
-            </div>
             <div id="resultsList" class="results-list"></div>
         </div>
     </div>
