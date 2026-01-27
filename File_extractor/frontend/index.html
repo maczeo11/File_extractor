@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Text Extractor</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-top">
+            <h1>Universal Text Extractor</h1>
+            <button class="settings-toggle" id="toggleConfig" title="Server Settings">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </div>
+
+        <div class="config-panel collapsed" id="configPanel">
+            <div class="input-group">
+                <i class="fa-solid fa-server"></i>
+                <input type="text" id="apiUrl" placeholder="https://your-app.railway.app">
+            </div>
+        </div>
+    </header>
+
+    <div class="drop-zone" id="dropZone">
+        <div class="icon-stack">
+            <i class="fa-regular fa-file-pdf"></i>
+            <i class="fa-regular fa-file-image"></i>
+            <i class="fa-regular fa-file-excel"></i>
+        </div>
+        <h3>Drop files here (max 5)</h3>
+        <p>PDF, Images, Excel, CSV, Docx</p>
+
+        <button class="browse-btn">Browse Files</button>
+
+        <!-- 🔥 MULTIPLE FILE UPLOAD ENABLED -->
+        <input type="file" id="fileInput" multiple>
+    </div>
+
+    <div class="file-info" id="fileInfo">
+        <div class="file-details">
+            <div class="file-icon">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <div class="file-meta">
+                <span id="fileName" class="name"></span>
+                <span class="status">Ready to extract</span>
+            </div>
+        </div>
+        <button class="remove-btn" onclick="clearFile()">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <button class="action-btn" id="extractBtn">
+        <span class="btn-content">
+            <i class="fa-solid fa-bolt"></i> Extract Text
+        </span>
+        <div class="spinner" id="btnSpinner"></div>
+    </button>
+
+    <div class="results-container" id="resultsArea">
+        <div id="resultsList" class="results-list"></div>
+    </div>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
