@@ -11,7 +11,7 @@ A modular web application that accepts real-world documents (PDF, Docs, Images, 
 This project follows the **Strategy Design Pattern**. A central "Router" detects the file type (using binary signatures) and delegates processing to specific "Extractor Modules."
 
 - **Backend:** FastAPI (Python), Tesseract OCR, OpenCV, Pandas, PDFPlumber.
-- **Frontend:** [React / Next.js / Streamlit] *(To be updated)*
+- **Frontend:** [Html / Css / Java Script] 
 - **Protocol:** REST API with standardized JSON response.
 
 ---
