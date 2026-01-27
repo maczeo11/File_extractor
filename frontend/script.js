@@ -1,195 +1,225 @@
-const DEFAULTS = {
-    API_URL: "https://file-extractor.onrender.com",
-    MAX_FILES: 5
-};
+//
 
-const els = {
-    dropZone: document.getElementById('dropZone'),
-    fileInput: document.getElementById('fileInput'),
-    queue: document.getElementById('queueContainer'),
-    extractBtn: document.getElementById('extractBtn'),
-    resultsList: document.getElementById('resultsList'), 
-    resultsArea: document.getElementById('resultsArea'),
-    spinner: document.getElementById('btnSpinner'),
-    apiUrl: document.getElementById('apiUrl'),
-    batchStatus: document.getElementById('batchStatus'),
-    configPanel: document.getElementById('configPanel')
-};
+// --- CONFIGURATION ---
+// List all your possible servers here
+const CANDIDATE_URLS = [
+    "https://text-extractor.onrender.com",   // Render
+    "https://your-app.up.railway.app",       // Railway (Replace with yours)
+    "http://localhost:8000"                  // Localhost
+];
 
-let fileQueue = []; 
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const fileName = document.getElementById('fileName');
+const extractBtn = document.getElementById('extractBtn');
+const resultsArea = document.getElementById('resultsArea');
+const resultsList = document.getElementById('resultsList');
+const btnSpinner = document.getElementById('btnSpinner');
+const btnContent = document.querySelector('.btn-content');
+const apiUrlInput = document.getElementById('apiUrl');
+const toggleConfig = document.getElementById('toggleConfig');
+const configPanel = document.getElementById('configPanel');
 
-window.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('utext_api_url');
-    if (saved) els.apiUrl.value = saved;
-});
+let currentFile = null;
+let activeApiUrl = ""; // This will hold the winner
 
-document.getElementById('toggleConfig').onclick = () => 
-    els.configPanel.classList.toggle('collapsed');
-
-const highlight = (active) => els.dropZone.classList.toggle('drag-over', active);
-
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
-    els.dropZone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-    });
-});
-
-els.dropZone.addEventListener('dragenter', () => highlight(true));
-els.dropZone.addEventListener('dragleave', () => highlight(false));
-els.dropZone.addEventListener('drop', (e) => {
-    highlight(false);
-    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
-});
-
-els.dropZone.addEventListener('click', (e) => {
-    if (e.target !== els.dropZone && !e.target.classList.contains('browse-btn')) return;
-    els.fileInput.click();
-});
-
-els.fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length) handleFiles(e.target.files);
-});
-
-function handleFiles(files) {
-    if (files.length > DEFAULTS.MAX_FILES) return alert(`Max ${DEFAULTS.MAX_FILES} files allowed.`);
+// --- 🚀 AUTO-DETECT ACTIVE SERVER ---
+async function findActiveBackend() {
+    const statusIcon = document.querySelector('.fa-server'); // Icon in config panel
     
-    fileQueue = Array.from(files);
-    resetUI();
+    // UI: Show we are searching
+    apiUrlInput.placeholder = "Searching for active server...";
+    statusIcon.style.color = "orange";
 
-    els.queue.innerHTML = fileQueue.map((f, i) => `
-        <div class="queue-item" id="q-item-${i}">
-            <div class="q-name"><i class="fa-regular fa-file"></i> &nbsp; ${f.name}</div>
-            <div class="q-status status-pending" id="q-status-${i}">PENDING</div>
-        </div>
-    `).join('');
-
-    toggleView(true);
-}
-
-els.extractBtn.addEventListener('click', async () => {
-    if (!fileQueue.length) return;
-
-    const endpoint = getSafeEndpoint();
-    setLoading(true);
-    els.batchStatus.textContent = "PROCESSING...";
-
-    for (const [i, file] of fileQueue.entries()) {
-        const ui = {
-            card: document.getElementById(`q-item-${i}`),
-            status: document.getElementById(`q-status-${i}`)
-        };
-
-        updateItemStatus(ui, 'processing', 'PROCESSING...');
-        
+    // Create a list of fetch promises
+    const checks = CANDIDATE_URLS.map(async (url) => {
         try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const res = await fetch(endpoint, { method: 'POST', body: formData });
-            if (!res.ok) throw new Error((await res.json()).detail || 'Failed');
+            // We use the root "/" endpoint which returns {"status": "active"}
+            // Timeout after 3 seconds so we don't wait forever
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
             
-            const data = await res.json();
-            updateItemStatus(ui, 'done', 'DONE');
-            renderFileResult(data);
+            const response = await fetch(`${url}/`, { 
+                method: 'GET', 
+                signal: controller.signal 
+            });
+            clearTimeout(timeoutId);
 
+            if (response.ok) {
+                return url; // Return the winning URL
+            }
+            throw new Error("Not 200 OK");
         } catch (err) {
-            console.error(err);
-            updateItemStatus(ui, 'error', 'ERROR');
-            renderError(file.name, err.message);
-            if (i === 0) alert(`Connection Failed to: ${endpoint}\n\n${err.message}`);
+            throw err; // This server is down/unreachable
         }
-    }
+    });
 
-    els.batchStatus.textContent = "COMPLETED";
-    setLoading(false);
+    try {
+        // Promise.any returns the FIRST successful promise (the fastest server)
+        const winner = await Promise.any(checks);
+        
+        // Winner found!
+        activeApiUrl = winner;
+        apiUrlInput.value = winner; // Auto-fill the input
+        
+        // UI: Green Success
+        statusIcon.style.color = "#10b981"; // Green
+        console.log(`✅ Connected to: ${winner}`);
+        
+        // Optional: Show a toast or small text
+        // alert(`Connected to ${winner}`); 
+
+    } catch (error) {
+        // All servers failed
+        console.error("❌ No active backend found.");
+        statusIcon.style.color = "#ef4444"; // Red
+        apiUrlInput.placeholder = "No server found. Enter manually.";
+    }
+}
+
+// Run immediately on load
+document.addEventListener('DOMContentLoaded', findActiveBackend);
+
+
+// --- EXISTING LOGIC BELOW (No major changes needed) ---
+
+// Settings Toggle
+toggleConfig.addEventListener('click', () => {
+    configPanel.classList.toggle('collapsed');
 });
 
-function getSafeEndpoint() {
-    let url = els.apiUrl.value.trim();
-    if (url) localStorage.setItem('utext_api_url', url);
-    
-    url = url || DEFAULTS.API_URL;
-    url = url.replace(/(\/docs|\/api\/extract|\/)+$/, "");
-    
-    if (!/^https?:\/\//i.test(url)) {
-        url = (url.includes('localhost') || url.includes('127.0.0.1')) 
-            ? `http://${url}` 
-            : `https://${url}`;
+// Drag & Drop Handlers
+dropZone.addEventListener('click', (e) => {
+    if (e.target !== dropZone && !e.target.classList.contains('browse-btn')) return;
+    fileInput.click();
+});
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, preventDefaults, false);
+    document.body.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+});
+
+dropZone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length) handleFile(files[0]);
+});
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+    currentFile = file;
+    fileName.textContent = file.name;
+    dropZone.style.display = 'none';
+    fileInfo.style.display = 'flex';
+    extractBtn.style.display = 'block';
+    resultsArea.style.display = 'none';
+}
+
+window.clearFile = function() {
+    currentFile = null;
+    fileInput.value = '';
+    dropZone.style.display = 'block';
+    fileInfo.style.display = 'none';
+    extractBtn.style.display = 'none';
+    resultsArea.style.display = 'none';
+}
+
+extractBtn.addEventListener('click', async () => {
+    if (!currentFile) return;
+
+    // Use the auto-detected URL, or the Input, or default to localhost
+    let rawUrl = apiUrlInput.value.trim() || activeApiUrl || "http://localhost:8000";
+    let baseUrl = rawUrl.replace(/\/$/, "");
+    const endpoint = `${baseUrl}/api/extract`;
+
+    setLoading(true);
+    resultsArea.style.display = 'none';
+    resultsList.innerHTML = '';
+
+    const formData = new FormData();
+    formData.append('file', currentFile);
+
+    try {
+        const response = await fetch(endpoint, { method: 'POST', body: formData });
+        
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || 'Extraction failed');
+        }
+
+        const data = await response.json();
+        renderResults(data);
+
+    } catch (error) {
+        alert(`Error: ${error.message}\n\nAttempted Server: ${baseUrl}`);
+        console.error(error);
+    } finally {
+        setLoading(false);
     }
-    return `${url}/api/extract`;
+});
+
+function setLoading(isLoading) {
+    extractBtn.disabled = isLoading;
+    if (isLoading) {
+        btnSpinner.style.display = 'block';
+        btnContent.style.opacity = '0';
+    } else {
+        btnSpinner.style.display = 'none';
+        btnContent.style.opacity = '1';
+    }
 }
 
-function updateItemStatus({ card, status }, type, text) {
-    status.className = `q-status status-${type}`;
-    status.textContent = text;
-    card.classList.remove('processing', 'done', 'error');
-    card.classList.add(type);
-}
+function renderResults(data) {
+    document.getElementById('resType').textContent = (data.file_type || 'UNKNOWN').toUpperCase();
+    document.getElementById('resTime').textContent = `${data.processing_time_ms}ms`;
 
-function resetUI() {
-    els.queue.innerHTML = '';
-    els.resultsList.innerHTML = ''; 
-    els.resultsArea.style.display = 'none';
-    els.batchStatus.textContent = "READY";
-}
+    const grouped = {};
+    const sortedContent = data.content.sort((a, b) => (a.location?.number || 0) - (b.location?.number || 0));
 
-function toggleView(hasFiles) {
-    els.queue.style.display = hasFiles ? 'flex' : 'none';
-    els.extractBtn.style.display = hasFiles ? 'block' : 'none';
-}
+    sortedContent.forEach(unit => {
+        let key = "Extracted Text";
+        if (unit.location.type === 'page') key = `Page ${unit.location.number}`;
+        else if (unit.location.type === 'row' && unit.location.sheet) key = `Sheet: ${unit.location.sheet}`;
+        
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(unit.text);
+    });
 
-function setLoading(active) {
-    els.extractBtn.disabled = active;
-    els.spinner.style.display = active ? 'block' : 'none';
-    document.querySelector('.btn-content').style.opacity = active ? '0' : '1';
-    if (active) els.resultsArea.style.display = 'block';
-}
-
-function renderFileResult(data) {
-    const safeType = (data.file_type || 'UNK').toUpperCase();
-    
-    const groups = {};
-    (data.content || []).sort((a,b) => (a.location?.number||0) - (b.location?.number||0))
-        .forEach(u => {
-            const k = u.location.type === 'page' ? `PAGE ${u.location.number}` : 
-                      u.location.sheet ? `SHEET: ${u.location.sheet}` : "EXTRACTED TEXT";
-            if (!groups[k]) groups[k] = [];
-            groups[k].push(u.text);
+    const keys = Object.keys(grouped);
+    if (keys.length === 0) {
+        resultsList.innerHTML = `<div style="text-align:center; color: #64748b;">No text found in this file.</div>`;
+    } else {
+        keys.forEach(groupName => {
+            const textContent = grouped[groupName].join('\n\n');
+            createPageCard(groupName, textContent);
         });
-
-    const html = `
-        <div class="file-result-block">
-            <div class="file-result-header">
-                <div class="fr-title"><i class="fa-solid fa-file-circle-check" style="color:var(--accent)"></i> ${data.filename}</div>
-                <div class="fr-meta">
-                    <span class="fr-badge fr-type">${safeType}</span>
-                    <span class="fr-badge fr-time">${data.processing_time_ms || 0}ms</span>
-                </div>
-            </div>
-            ${Object.keys(groups).length ? '' : '<div class="empty-msg">No text found.</div>'}
-            ${Object.entries(groups).map(([title, texts]) => `
-                <div class="page-card">
-                    <div class="page-header">
-                        <span class="page-title"><i class="fa-regular fa-file-lines"></i> ${title}</span>
-                        <span class="page-badge">${texts.join('').length} chars</span>
-                    </div>
-                    <div class="page-content">${texts.join('\n\n')}</div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-    els.resultsList.insertAdjacentHTML('beforeend', html);
+    }
+    resultsArea.style.display = 'block';
 }
 
-function renderError(name, msg) {
-    els.resultsList.insertAdjacentHTML('beforeend', `
-        <div class="file-result-block" style="border-color:#ef4444">
-            <div class="file-result-header" style="border-color:rgba(239,68,68,0.3)">
-                <div class="fr-title" style="color:#ef4444"><i class="fa-solid fa-circle-exclamation"></i> ${name}</div>
-                <span class="fr-badge" style="background:rgba(239,68,68,0.1);color:#ef4444">FAILED</span>
-            </div>
-            <div style="color:#ef4444;padding:0.5rem">${msg}</div>
+function createPageCard(title, text) {
+    const card = document.createElement('div');
+    card.className = 'page-card';
+    card.innerHTML = `
+        <div class="page-header">
+            <span class="page-title"><i class="fa-regular fa-file-lines"></i> &nbsp; ${title}</span>
+            <span class="page-badge">${text.length} chars</span>
         </div>
-    `);
+        <div class="page-content">${text}</div>
+    `;
+    resultsList.appendChild(card);
 }
