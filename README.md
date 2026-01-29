@@ -263,4 +263,3 @@ docker run -p 8000:8000 universal-text-extractor
 This project is licensed under the MIT License.
 
 ---
-
