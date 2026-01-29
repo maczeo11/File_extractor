@@ -1,6 +1,3 @@
-To ensure the formatting stays perfectly intact when you paste it into your `README.md` file, I have provided the raw Markdown inside a single code block below.
-
-This version uses standard ASCII characters for the directory tree and architecture diagram, which are guaranteed to render correctly across GitHub, GitLab, and VS Code.
 
 ```markdown
 # 🚀 Universal Text Extractor
@@ -102,7 +99,7 @@ FILE_EXTRACTOR/
 
 ### Frontend
 
-* **Languages:** HTML5, CSS3, JavaScript (ES6+)
+* **Languages:** HTML5, CSS3, JavaScript 
 * **Features:** Drag-and-drop API, Fetch API for asynchronous uploads
 
 ---
