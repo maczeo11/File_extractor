@@ -1,127 +1,266 @@
-
----
-
 ```markdown
-# File_extractor
+# 🚀 Universal Text Extractor
 
-small project , a text extractor that works by extracting text from varios file types
+<div align="center">
 
-## 🚀 Universal Text Extraction Web App
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![OCR](https://img.shields.io/badge/OCR-Tesseract-green)
+![OpenCV](https://img.shields.io/badge/OpenCV-Image%20Processing-orange)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-yellow)
 
-A robust, modular web application designed to extract text from a wide variety of real-world document formats (PDFs, Images, Word Docs, and Tables) and convert them into a standardized, machine-readable JSON structure.
+A full-stack document text extraction system that intelligently extracts text from PDFs, Images, Word files, Excel/CSV tables,
+and HTML using OCR and format-aware extraction strategies, and returns a standardized structured JSON output.
 
-This project implements the **Strategy Design Pattern**, allowing for seamless expansion to new file types without modifying the core routing logic.
+</div>
 
-### 🏗️ Project Architecture
+---
 
-The application is split into a modern decoupled architecture:
+## 📌 Overview
 
-* **Backend:** FastAPI (Python) serving as a high-performance REST API.
-* **Frontend:** A responsive UI for file uploads and result visualization.
-* **Processing Engine:** Utilizes binary signature detection to route files to specialized extractors (Tesseract OCR, OpenCV, PDFPlumber, and Pandas).
+Universal Text Extractor is designed to handle real-world documents that may contain native text, scanned pages, embedded images, and tables.  
+The system automatically detects the file type, applies the appropriate extraction strategy, falls back to OCR when required, and produces a consistent JSON output schema for all supported formats.
 
-### 📁 Repository Structure
+The project consists of a FastAPI backend and a modern drag-and-drop frontend.
 
-```text
-├── app/                # FastAPI Backend logic
-├── frontend/           # Html/Css/Java Script UI components
-├── Dockerfile          # Containerization for easy deployment
-├── requirements.txt    # Python dependencies
-└── .gitignore          # Standard git exclusion rules
+---
+
+## ✨ Features
+
+- Supports **PDF, DOCX, XLSX, CSV, TXT, PNG, JPG, HTML**
+- OCR using **Tesseract** with OpenCV preprocessing
+- Strategy Design Pattern for modular extractors
+- MIME-based file type detection with extension fallback
+- Page-wise, row-wise, and sheet-wise extraction
+- OCR for embedded images in PDFs and Word documents
+- FastAPI REST API
+- Modern drag-and-drop frontend UI
+- Frontend supports File selection
+- Docker-ready backend
+
+---
+
+## 🏗️ System Architecture
+
+```
+
+Web Frontend (HTML / CSS / JavaScript)
+│
+│  File selected
+│  
+▼
+FastAPI Backend
+│
+│  MIME Detection (libmagic)
+▼
+Extractor Router (Strategy Pattern)
+│
+├── PDFExtractor
+│     ├── Native text extraction
+│     ├── Embedded image OCR
+│     └── Full-page OCR fallback
+│
+├── WordExtractor
+│     ├── Paragraph text
+│     ├── Table rows
+│     └── Inline image OCR
+│
+├── ImageExtractor (OCR)
+├── TableExtractor (Excel / CSV)
+└── HTMLExtractor
+│
+▼
+Standardized JSON Output
 
 ```
 
 ---
 
-## 📂 Backend Documentation
+## 🛠️ Tech Stack
 
-### 1. Prerequisites
+### Backend
+- Python 3.9+
+- FastAPI
+- Tesseract OCR
+- OpenCV
+- PDFPlumber
+- python-docx
+- Pandas
+- BeautifulSoup
+- libmagic
 
-Before running the server, ensure you have the following installed:
+### Frontend
+- HTML5, CSS3, JavaScript
+- Drag-and-drop file upload
+- Sequential processing queue for multiple files
 
-* **Python 3.9+**
-* **Tesseract OCR Engine:**
-* *Windows:* Install via [UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki) and **add `C:\Program Files\Tesseract-OCR` to your System PATH.**
-* *Linux:* `sudo apt-get install tesseract-ocr libmagic1`
-* *macOS:* `brew install tesseract libmagic`
+### DevOps
+- Docker
+- requirements.txt
+- MIT License
 
+---
 
-
-### 2. Installation & Setup
-
-**Local Development**
-
-1. Clone the repository:
-```bash
-git clone [https://github.com/maczeo11/File_extractor.git](https://github.com/maczeo11/File_extractor.git)
-cd File_extractor
+## 📁 Project Structure
 
 ```
 
+FILE_EXTRACTOR/
+│
+├── app/
+│   ├── extractors/
+│   │   ├── base.py        # Abstract extractor interface
+│   │   ├── documents.py  # PDF & Word extraction logic
+│   │   ├── images.py     # OCR image extractor
+│   │   ├── tables.py     # Excel / CSV extractor
+│   │   └── web.py        # HTML extractor
+│   │
+│   ├── schemas.py        # Standardized response models
+│   ├── utils.py          # OCR preprocessing utilities
+│   └── main.py           # FastAPI application
+│
+├── frontend/
+│   ├── index.html
+│   ├── style.css
+│   └── script.js
+│
+├── test_files/
+│   └── Experiment-1.pdf
+│
+├── Dockerfile
+├── requirements.txt
+├── LICENSE
+└── README.md
 
-2. Backend Setup:
+````
+
+---
+
+## ⚙️ How It Works
+
+1. User select file in the frontend
+2. Frontend send file to the backend
+3. Backend detects the file type using MIME detection
+4. The appropriate extractor is selected
+5. OCR is applied when native text is unavailable
+6. Extracted data is normalized into a common schema
+7. Structured JSON is returned and rendered in the UI
+
+---
+
+## 🔌 API Reference
+
+### POST `/api/extract`
+
+Extract text from a single uploaded file.
+
+**Request**
+- `multipart/form-data`
+- Field name: `file`
+
+**Supported Formats**
+- PDF
+- DOCX
+- XLSX
+- CSV
+- TXT
+- PNG / JPG
+- HTML
+
+**Response**
+```json
+{
+  "filename": "sample.pdf",
+  "file_type": "pdf",
+  "processing_time_ms": 124.83,
+  "content": [
+    {
+      "text": "Extracted text",
+      "source": "page_1",
+      "location": {
+        "type": "page",
+        "number": 1
+      }
+    }
+  ]
+}
+````
+
+---
+
+## 📦 Output Schema
+
+* **DocumentResponse** – One processed document
+* **ExtractedUnit** – Atomic unit of extracted text
+* **Location** – Context-aware metadata (`page`, `row`, `pixel_box`)
+
+---
+
+## 🚀 Running the Server
+
+### Prerequisites
+
+* Python 3.9+
+* Tesseract OCR installed
+* Dependencies installed via `requirements.txt`
+
+### Start the FastAPI Server
+
+From the project root directory:
+
 ```bash
-pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
-
 ```
 
+### Access
 
-3. Frontend Setup:
-```bash
-cd frontend
-npm install
-npm run dev
-
-```
-
-
-
-**Docker Deployment**
-
-```bash
-docker build -t file-extractor .
-docker run -p 8000:8000 file-extractor
-
-```
-
-### 3. API Documentation
-
-Once the backend is running, you can access the interactive Swagger documentation at:
-👉 **http://localhost:8000/docs**
+* API Base URL: `http://localhost:8000`
+* Health Check: `http://localhost:8000/`
+* Swagger Docs: `http://localhost:8000/docs`
 
 ---
 
-## ✨ Key Features
+## 🐳 Docker Support
 
-* **Multi-Format Support:** Handles `.pdf`, `.docx`, `.jpg`, `.png`, and `.csv`.
-* **Table Extraction:** Intelligently identifies and parses tabular data from within documents.
-* **Scalability:** The modular "Strategy" approach allows developers to add new file-type extractors with minimal code changes.
-* **API-First Design:** Fully documented REST API via Swagger UI.
+```bash
+docker build -t universal-text-extractor .
+docker run -p 8000:8000 universal-text-extractor
+```
 
 ---
 
-### 🛠️ Quick Execution
+## 📌 Use Cases
 
-**Step 1: System Dependencies**
-Install Tesseract OCR on your local machine and ensure it is added to your system environment variables.
+* Academic document digitization
+* OCR for scanned lab records
+* Resume and report parsing
+* Backend document-processing pipelines
+* Automation and data extraction systems
 
-**Step 2: Environment Setup**
+---
 
-```bash
-git clone [https://github.com/maczeo11/File_extractor.git](https://github.com/maczeo11/File_extractor.git)
-pip install -r requirements.txt
+## ⚠️ Current Limitations
 
-```
+* Backend processes one file per API request
+* Multiple files are handled sequentially by the frontend
+* Bounding box visualization is not exposed in the UI
 
-**Step 3: Execution**
-Run the server using Uvicorn:
+---
 
-```bash
-python -m uvicorn app.main:app --reload
+## 🚧 Future Enhancements
 
-```
+* Native multi-file backend API
+* Language detection
+* Bounding box visualization
+* Export results as JSON / TXT
+* Cloud-native scaling
 
-```
+---
 
-```
+## 📄 License
+
+This project is licensed under the MIT License.
+
+---
+
