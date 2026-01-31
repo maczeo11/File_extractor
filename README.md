@@ -1,127 +1,145 @@
+Universal Text Extractor (A SMALL PROJECT :)
+    Our goal was to make a usable tool that any one can use without the knowledge of technical know-how's. 
 
----
+📖 System Overview
 
-```markdown
-# File_extractor
+The Universal Text Extractor solves the "Dark Data" problem by normalizing content from PDF, Word, Excel, Images, and HTML into a standardized JSON format. Unlike simple wrappers, this system implements a Hybrid Extraction Engine that switches strategies based on file content (not just extension) and uses advanced pre-processing to improve OCR accuracy on noisy documents.
 
-small project , a text extractor that works by extracting text from varios file types
+It is deployed via a Serverless Architecture (Railway/Render) with a smart frontend that manages request concurrency to respect free-tier resource quotas.
+🏗️ Technical Architecture & Engineering Decisions
 
-## 🚀 Universal Text Extraction Web App
+We made several key architectural decisions to ensure scalability, reliability, and cost-efficiency.
+1. The Strategy Pattern (Backend)
 
-A robust, modular web application designed to extract text from a wide variety of real-world document formats (PDFs, Images, Word Docs, and Tables) and convert them into a standardized, machine-readable JSON structure.
+Decision: We implemented the Strategy Design Pattern for the extraction logic.
 
-This project implements the **Strategy Design Pattern**, allowing for seamless expansion to new file types without modifying the core routing logic.
+    Why? To strictly follow the Open/Closed Principle (SOLID). The main.py router acts as the Context, while PDFExtractor, ImageExtractor, etc., are isolated strategies.
 
-### 🏗️ Project Architecture
+    Benefit: We can add support for new formats (e.g., .epub or .pptx) by simply creating a new class in app/extractors/ without modifying the core API logic.
 
-The application is split into a modern decoupled architecture:
+2. Hybrid OCR Pipeline (Computer Vision)
 
-* **Backend:** FastAPI (Python) serving as a high-performance REST API.
-* **Frontend:** A responsive UI for file uploads and result visualization.
-* **Processing Engine:** Utilizes binary signature detection to route files to specialized extractors (Tesseract OCR, OpenCV, PDFPlumber, and Pandas).
+Decision: We do not simply pass images to Tesseract. We apply a Computer Vision pre-processing pipeline in app/utils.py.
 
-### 📁 Repository Structure
+    Why? Tesseract struggles with shadows, noise, and low contrast.
 
-```text
-├── app/                # FastAPI Backend logic
-├── frontend/           # Html/Css/Java Script UI components
-├── Dockerfile          # Containerization for easy deployment
-├── requirements.txt    # Python dependencies
-└── .gitignore          # Standard git exclusion rules
+    The Pipeline:
 
-```
+        Memory Decoding: Converts raw bytes to NumPy arrays (cv2.imdecode).
 
----
+        Grayscale Conversion: Reduces dimensionality (cv2.cvtColor).
 
-## 📂 Backend Documentation
+        Otsu's Binarization: Applies dynamic thresholding (cv2.THRESH_BINARY + cv2.THRESH_OTSU) to separate text from background noise automatically.
 
-### 1. Prerequisites
+        Configuration: Runs Tesseract with --oem 1 (LSTM Neural Net) and --psm 3 (Auto Page Segmentation) for maximum accuracy.
 
-Before running the server, ensure you have the following installed:
+3. Client-Side "Smart Queue" (Resource Management)
 
-* **Python 3.9+**
-* **Tesseract OCR Engine:**
-* *Windows:* Install via [UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki) and **add `C:\Program Files\Tesseract-OCR` to your System PATH.**
-* *Linux:* `sudo apt-get install tesseract-ocr libmagic1`
-* *macOS:* `brew install tesseract libmagic`
+Decision: The frontend implements a Sequential Promise Queue instead of parallel uploads.
 
+    Why? The application runs on Free Tier Cloud Instances (512MB RAM). Running 5 parallel OCR processes would cause an Out of Memory (OOM) crash.
 
+    Solution: The JavaScript loop waits for the previous await fetch() to complete before sending the next file. This creates a "Batch Experience" for the user while strictly enforcing "Serial Processing" for the server.
 
-### 2. Installation & Setup
+4. Robust MIME-Type Detection
 
-**Local Development**
+Decision: We use python-magic (libmagic) to inspect file headers (Magic Numbers) rather than trusting file extensions.
 
-1. Clone the repository:
-```bash
-git clone [https://github.com/maczeo11/File_extractor.git](https://github.com/maczeo11/File_extractor.git)
-cd File_extractor
+    Why? Users often rename files incorrectly (e.g., naming a PNG image .pdf). Trusting extensions leads to crashes; trusting headers guarantees stability.
 
-```
+📂 Project Structure
+Bash
 
+Universal-Text-Extractor/
+├── app/
+│   ├── extractors/          # Strategy Pattern Implementation
+│   │   ├── base.py          # Abstract Base Class (ABC)
+│   │   ├── documents.py     # Complex PDF & Word Logic (Hybrid OCR)
+│   │   ├── images.py        # Tesseract Wrapper
+│   │   ├── tables.py        # Pandas Logic (Excel/CSV)
+│   │   └── web.py           # BeautifulSoup Logic (HTML)
+│   ├── utils.py             # OpenCV Pre-processing (Otsu/Grayscale)
+│   ├── main.py              # FastAPI Router & Middleware
+│   └── schemas.py           # Pydantic Response Models
+├── frontend/
+│   ├── index.html           # UI Structure
+│   ├── script.js            # Batch Queue & Server Auto-Detect Logic
+│   └── style.css            # Modern Dark UI
+├── requirements.txt         # Python Dependencies
+├── Dockerfile               # Production Container Config
+└── README.md                # Documentation
 
-2. Backend Setup:
-```bash
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload
+⚡ Key Features
+📄 PDF (Hybrid Extraction)
 
-```
+    Text Layer: First attempts to extract native text using pdfplumber.
 
+    Embedded Images: Iterates through PDF objects to find raster images (charts, diagrams). If found, they are extracted, converted to PNG in memory, and passed through the OCR pipeline.
 
-3. Frontend Setup:
-```bash
-cd frontend
-npm install
-npm run dev
+    Fallback: If a page is scanned (has <10 characters of text), it renders the full page at 300 DPI and performs full-page OCR.
 
-```
+📝 Word (DOCX)
 
+    XML Parsing: Uses python-docx to traverse the document tree.
 
+    Deep Extraction: Scans XML blip (Binary Large Image Package) tags to find and extract embedded images hidden inside paragraphs or tables.
 
-**Docker Deployment**
+📊 Excel & CSV
 
-```bash
-docker build -t file-extractor .
-docker run -p 8000:8000 file-extractor
+    Structure Preservation: Uses pandas to read sheets and serializes rows into pipe-separated strings (|) to maintain tabular structure in plain text.
 
-```
+🚀 Setup & Installation
+1. Prerequisites
 
-### 3. API Documentation
+    Python 3.9+
 
-Once the backend is running, you can access the interactive Swagger documentation at:
-👉 **http://localhost:8000/docs**
+    Tesseract OCR installed on your system.
 
----
+        Windows: Download Installer (Add to PATH).
 
-## ✨ Key Features
+        Linux: sudo apt-get install tesseract-ocr libmagic1
 
-* **Multi-Format Support:** Handles `.pdf`, `.docx`, `.jpg`, `.png`, and `.csv`.
-* **Table Extraction:** Intelligently identifies and parses tabular data from within documents.
-* **Scalability:** The modular "Strategy" approach allows developers to add new file-type extractors with minimal code changes.
-* **API-First Design:** Fully documented REST API via Swagger UI.
+2. Run Locally
+Bash
 
----
+# Clone the repo
+git clone https://github.com/yourusername/universal-text-extractor.git
+cd universal-text-extractor
 
-### 🛠️ Quick Execution
-
-**Step 1: System Dependencies**
-Install Tesseract OCR on your local machine and ensure it is added to your system environment variables.
-
-**Step 2: Environment Setup**
-
-```bash
-git clone [https://github.com/maczeo11/File_extractor.git](https://github.com/maczeo11/File_extractor.git)
+# Install dependencies
 pip install -r requirements.txt
 
-```
+# Start Backend
+uvicorn app.main:app --reload
 
-**Step 3: Execution**
-Run the server using Uvicorn:
+3. Run Frontend
 
-```bash
-python -m uvicorn app.main:app --reload
+Simply open frontend/index.html in your browser. The smart script will automatically detect that your local server is running at http://localhost:8000.
+🌐 API Reference
+POST /api/extract
 
-```
+Uploads a file and returns structured text.
 
-```
+Request: multipart/form-data
 
-```
+    file: The document (PDF, JPG, PNG, DOCX, XLSX, etc.)
+
+Response Model:
+JSON
+
+{
+  "filename": "invoice.png",
+  "file_type": "png",
+  "processing_time_ms": 1250.5,
+  "content": [
+    {
+      "text": "Total Amount: $500.00",
+      "source": "ocr_engine",
+      "location": { "type": "pixel_box", "number": 1 }
+    }
+  ]
+}
+
+📜 License
+
+MIT License. Copyright (c) 2026.
