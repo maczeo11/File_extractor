@@ -419,17 +419,7 @@ We welcome contributions! Please follow this workflow:
 - [ ] Batch API endpoint (`POST /api/extract/batch`)
 - [ ] Language detection + multi-language OCR
 
----
 
-## 🗺️ Roadmap
-
-| Quarter | Features |
-|---------|----------|
-| **Q2 2026** | • PDF table structure preservation<br>• Async extraction with webhook callbacks |
-| **Q3 2026** | • PPTX/Presentation support<br>• Redaction API for PII removal |
-| **Q4 2026** | • Self-hosted model serving (Donut/UDOP for layout-aware extraction)<br>• Enterprise SSO integration |
-
----
 
 ## 📜 License
 
@@ -449,7 +439,4 @@ furnished to do so, subject to the following conditions:
 ...
 ```
 
----
 
-> 💡 **Pro Tip**: For production deployments handling sensitive data, run the extractor in an air-gapped environment with no internet access—the entire pipeline works offline after initial setup.
-```
