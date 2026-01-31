@@ -306,19 +306,6 @@ Run tests:
 pytest tests/ -v --cov=app --cov-report=html
 ```
 
----
-
-## 🌍 Real-World Use Cases
-
-| Industry | Application | Impact |
-|----------|-------------|--------|
-| **Legal Tech** | Contract analysis from scanned PDFs | Reduced manual review time by 65% |
-| **E-commerce** | Receipt digitization for expense reporting | 92% accuracy on mobile-captured receipts |
-| **Healthcare** | Patient form processing (HIPAA-compliant on-prem deployment) | Cut data entry errors by 78% |
-| **Research** | Literature review automation from academic PDFs | Extracted 10k+ papers into searchable knowledge base |
-
----
-
 
 
 ## 📜 License
