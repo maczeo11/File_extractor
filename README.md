@@ -7,14 +7,12 @@
 ---
 
 ## 🌐 Table of Contents
-- [The Problem: Dark Data](#-the-problem-dark-data)
 - [Solution Overview](#-solution-overview)
 - [Architecture Deep Dive](#-architecture-deep-dive)
 - [Technology Stack](#-technology-stack)
 - [Installation & Setup](#-installation--setup)
 - [API Reference](#-api-reference)
 - [Deployment Guide](#-deployment-guide)
-- [Security Considerations](#-security-considerations)
 - [Testing Strategy](#-testing-strategy)
 - [License](#-license)
 
