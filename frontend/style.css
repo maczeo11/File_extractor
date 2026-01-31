@@ -1,3 +1,5 @@
+/* */
+
 :root {
     --bg-main: #0f172a;
     --bg-card: #1e293b;
@@ -99,7 +101,20 @@ h1 {
     transition: 0.3s;
     cursor: pointer;
 }
-.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: rgba(99, 102, 241, 0.05); }
+.drop-zone:hover { border-color: var(--accent); background: rgba(99, 102, 241, 0.05); }
+
+/* Animation for dragging files over */
+@keyframes pulse-border {
+    0% { border-color: var(--accent); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+    70% { border-color: var(--accent); box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+    100% { border-color: var(--accent); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+.drop-zone.drag-over { 
+    background: rgba(99, 102, 241, 0.1); 
+    animation: pulse-border 1.5s infinite;
+    transform: scale(1.02);
+}
+
 .icon-stack { font-size: 2.5rem; color: var(--text-secondary); margin-bottom: 1rem; gap: 1rem; display: flex; justify-content: center; opacity: 0.7; }
 .browse-btn {
     background: var(--accent);
@@ -156,19 +171,19 @@ h1 {
 @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ✅ NEW: Copy Button */
-.copy-btn {
+/* ✅ UPDATED: Action Icons (Download/Copy) */
+.action-icon-btn {
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text-secondary);
     border-radius: 4px;
-    padding: 2px 6px;
+    padding: 4px 8px;
     cursor: pointer;
     transition: 0.2s;
 }
-.copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+.action-icon-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(99, 102, 241, 0.1); }
 
-/* ✅ NEW: Prominent 'Show More' Button */
+/* ✅ UPDATED: Prominent 'Show More' Button */
 .read-more-btn {
     width: 100%;
     background: rgba(99, 102, 241, 0.1);

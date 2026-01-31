@@ -1,7 +1,10 @@
+//
 
+// --- CONFIGURATION ---
 const CANDIDATE_URLS = [
-    "https://fileextractor-production.up.railway.app",  
-    "https://file-extractor.onrender.com/"               
+    "https://fileextractor-production.up.railway.app" ,
+    "https://file-extractor.onrender.com"
+
 ];
 
 let dropZone, fileInput, fileInfo, fileName, extractBtn, resultsArea, resultsList, btnSpinner, btnContent, apiUrlInput, toggleConfig, configPanel;
@@ -59,9 +62,7 @@ async function findActiveBackend() {
         statusIcon.style.color = "#10b981"; 
         statusIcon.className = "fa-solid fa-server"; 
         if (statusText) statusText.textContent = "Server Active & Connected";
-        console.log(`✅ Server woke up: ${winner}`);
     } catch (error) {
-        console.error("❌ No active backend found.");
         statusIcon.style.color = "#ef4444"; 
         statusIcon.className = "fa-solid fa-server";
         apiUrlInput.value = ""; 
@@ -70,7 +71,6 @@ async function findActiveBackend() {
     }
 }
 
-// --- EVENT LISTENERS ---
 function setupEventListeners() {
     toggleConfig.addEventListener('click', () => configPanel.classList.toggle('collapsed'));
 
@@ -157,7 +157,6 @@ function setupEventListeners() {
     });
 }
 
-// --- HELPER FUNCTIONS ---
 function handleFiles(files) {
     currentFiles = Array.from(files);
     fileName.textContent = `${currentFiles.length} file(s) selected`;
@@ -187,7 +186,20 @@ function setLoading(isLoading) {
     }
 }
 
-// ✅ NEW: Result Card with Show More + Copy
+// ✅ Download Helper
+function downloadText(filename, text) {
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `extracted_${filename}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+}
+
+// ✅ Result Card with Show Full/Collapse, Copy, and Download
 function renderResultCard(data, originalName) {
     const fullText = data.content.map(u => u.text).join('\n\n');
     const isLong = fullText.length > 600;
@@ -203,9 +215,14 @@ function renderResultCard(data, originalName) {
     card.innerHTML = `
         <div class="page-header">
             <span class="page-title"><i class="fa-regular fa-file-lines"></i> ${originalName}</span>
-            <div style="display:flex; gap:10px; align-items:center;">
+            <div style="display:flex; gap:8px; align-items:center;">
                 <span class="page-badge">${data.processing_time_ms}ms</span>
-                <button class="copy-btn" title="Copy to Clipboard" data-text="${escapedText}">
+                
+                <button class="action-icon-btn download-btn" title="Download as .txt">
+                    <i class="fa-solid fa-download"></i>
+                </button>
+                
+                <button class="action-icon-btn copy-btn" title="Copy to Clipboard" data-text="${escapedText}">
                     <i class="fa-regular fa-copy"></i>
                 </button>
             </div>
@@ -221,6 +238,9 @@ function renderResultCard(data, originalName) {
         <div class="full-text-storage" style="display:none;">${fullText.replace(/\n/g, '<br>')}</div>
     `;
 
+    // Download Logic
+    card.querySelector('.download-btn').addEventListener('click', () => downloadText(originalName, fullText));
+
     // Copy Logic
     const copyBtn = card.querySelector('.copy-btn');
     copyBtn.addEventListener('click', () => {
@@ -229,23 +249,22 @@ function renderResultCard(data, originalName) {
         setTimeout(() => copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>', 2000);
     });
 
-    // Show More Logic
+    // Show More/Collapse Logic
     if (isLong) {
         const btn = card.querySelector('.read-more-btn');
         const contentSpan = card.querySelector('.text-content');
-        const fullContent = card.querySelector('.full-text-storage').innerHTML;
+        const fullContentStorage = card.querySelector('.full-text-storage');
         
         btn.addEventListener('click', () => {
             if (btn.innerText.includes("Show Full")) {
-                contentSpan.innerHTML = fullContent;
+                contentSpan.innerHTML = fullContentStorage.innerHTML;
                 btn.innerHTML = '<i class="fa-solid fa-compress"></i> Collapse Text';
-                btn.style.background = 'transparent';
-                btn.style.border = '1px dashed var(--text-secondary)';
-                btn.style.color = 'var(--text-secondary)';
+                // Toggle prominent styling when expanded
+                btn.classList.add('collapsed-mode');
             } else {
                 contentSpan.innerHTML = shortText.replace(/\n/g, '<br>');
                 btn.innerHTML = '<i class="fa-solid fa-expand"></i> Show Full Text';
-                btn.removeAttribute('style');
+                btn.classList.remove('collapsed-mode');
             }
         });
     }
@@ -253,12 +272,10 @@ function renderResultCard(data, originalName) {
     resultsList.appendChild(card);
 }
 
-// ✅ NEW: Error Card with Supported Types
 function renderErrorCard(filename, errorObj) {
     let title = "Extraction Failed";
     let detail = "An unexpected error occurred.";
     let icon = "fa-triangle-exclamation";
-    
     let errorMsg = errorObj.message;
     let status = 0;
 
