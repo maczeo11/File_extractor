@@ -154,4 +154,43 @@ h1 {
 .page-content { padding: 1.5rem; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; line-height: 1.7; white-space: pre-wrap; overflow-x: auto; }
 
 @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
-@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }fhbcfvjuut
+@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ✅ NEW: Copy Button */
+.copy-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ✅ NEW: Prominent 'Show More' Button */
+.read-more-btn {
+    width: 100%;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 0.8rem;
+    margin-top: 1rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.read-more-btn:hover {
+    background: var(--accent);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.read-more-btn:active { transform: translateY(0); }

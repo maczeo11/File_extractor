@@ -1,4 +1,4 @@
-import magic   # <--- Added this as requested
+import magic
 import sys
 import time
 import pytesseract
@@ -12,78 +12,42 @@ from app.extractors.tables import TableExtractor
 from app.extractors.images import ImageExtractor
 from app.extractors.web import HTMLExtractor
 
-# --- 🛠️ TESSERACT CONFIGURATION (FINAL FIX) ---
+# --- 🛠️ TESSERACT CONFIGURATION ---
 if sys.platform.startswith('win'):
-    # 1. Base Installation Path
     tesseract_base_path = r'C:\Program Files\Tesseract-OCR'
-    
-    # 2. Path to the Executable
     executable_path = os.path.join(tesseract_base_path, 'tesseract.exe')
-    
-    # 3. Path to the Data Folder (tessdata)
-    # ⚠️ CRITICAL: This is where 'eng.traineddata' lives
     tessdata_path = os.path.join(tesseract_base_path, 'tessdata')
 
     if os.path.exists(executable_path):
         pytesseract.pytesseract.tesseract_cmd = executable_path
-        
-        # ⚠️ THE FIX: Point TESSDATA_PREFIX directly to the 'tessdata' folder
-        # This solves the "Error opening data file..." crash
         os.environ['TESSDATA_PREFIX'] = tessdata_path
-        
-        print(f"✅ DEBUG: Windows Tesseract configured.")
-        print(f"   - Exe: {executable_path}")
-        print(f"   - Data: {tessdata_path}")
     else:
-        print("⚠️ WARNING: Tesseract.exe not found. Images will fail.")
-        print("   Did you install it from the README link?")
-
-else:
-    print(f"✅ DEBUG: Running on Linux/Cloud. Using system Tesseract.")
+        print("⚠️ WARNING: Tesseract.exe not found on Windows.")
 
 # --- APP DEFINITION ---
 app = FastAPI(title="Universal Text Extractor API")
 
-origins = [
-    "http://localhost",
-    "http://localhost:8000",
-    "http://localhost:3000",      # Common for React/Frontend dev
-    "http://127.0.0.1:5500",      # Common for VS Code "Live Server"
-    "http://127.0.0.1:8000",
-    "https://fileextractor-production.up.railway.app", # Your Production URL
-    "https://text-extractor.onrender.com",             # Your Render URL
-    "*"                                                # ⚠️ Allow ALL (Easiest for testing)
-]
+#
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   
-    allow_credentials=True,
-    allow_methods=["*"],  
-    allow_headers=["*"], 
+    allow_origins=["*"],     # ✅ Allows all domains (Railway, Localhost, etc.)
+    allow_credentials=False, # ✅ MUST be False when origins is ["*"]
+    allow_methods=["*"],     # ✅ Allows all methods (POST, GET, OPTIONS)
+    allow_headers=["*"],     # ✅ Allows all headers
 )
-# Strategy Map: Connects MIME types to specific logic
+
+# Strategy Map
 EXTRACTOR_MAP = {
-    # PDF
     "application/pdf": PDFExtractor,
-    
-    # Word
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": WordExtractor,
-    
-    # Excel
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": TableExtractor,
     "application/vnd.ms-excel": TableExtractor,
-    
-    # CSV / Text
     "text/csv": lambda f, n: TableExtractor(f, n, is_csv=True),
     "text/plain": lambda f, n: TableExtractor(f, n, is_csv=True),
-    
-    # Images
     "image/png": ImageExtractor,
     "image/jpeg": ImageExtractor,
     "image/tiff": ImageExtractor,
-    
-    # Web
     "text/html": HTMLExtractor
 }
 
@@ -93,36 +57,27 @@ def health_check():
 
 @app.post("/api/extract", response_model=DocumentResponse)
 def extract_file(file: UploadFile):
-    """
-    Main endpoint that accepts a file, detects its type, 
-    chooses the right strategy, and returns standardized JSON.
-    """
     start_time = time.time()
     
-    # 1. Read Bytes
+    # 1. Read File
     try:
         file_bytes = file.file.read()
     except Exception:
         raise HTTPException(status_code=400, detail="Corrupt or unreadable file")
 
-    # 2. Detect Type (Magic Numbers)
+    # 2. Detect Type
     try:
-        # mime=True returns 'application/pdf' etc.
         mime_type = magic.from_buffer(file_bytes, mime=True)
     except Exception:
-        # Fallback if magic crashes
         mime_type = "application/octet-stream"
 
-    print(f"DEBUG: Filename='{file.filename}' Detected MIME='{mime_type}'")
+    print(f"DEBUG: Processing '{file.filename}' ({mime_type})")
 
-    # 3. Router Logic (Strategy Pattern)
     extractor_class = EXTRACTOR_MAP.get(mime_type)
     
-    # 🛡️ SAFETY NET: Fallback to extension if magic fails (Common on Windows)
+    # 3. Fallback Logic & Error Handling
     if not extractor_class or mime_type == "application/octet-stream":
-        print("DEBUG: Magic detection failed or unknown. Checking extension...")
         lower_name = file.filename.lower()
-        
         if lower_name.endswith('.docx'):
              extractor_class = WordExtractor
              mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -140,36 +95,35 @@ def extract_file(file: UploadFile):
              mime_type = "text/plain"
         elif lower_name.endswith(('.png', '.jpg', '.jpeg')):
              extractor_class = ImageExtractor
-             mime_type = "image/png" # Generic image type
+             mime_type = "image/png"
         else:
-            raise HTTPException(400, detail=f"Unsupported file type: {mime_type} (Extension not recognized)")
+            # ✅ EXPLICIT SUPPORTED LIST
+            supported_formats = "PDF, DOCX, XLSX, CSV, TXT, HTML, PNG, JPG"
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Unsupported format: {mime_type}. Supported types: {supported_formats}"
+            )
 
     # 4. Extract
     try:
-        # Initialize the selected extractor with bytes and filename
         extractor = extractor_class(file_bytes, file.filename)
         content = extractor.extract()
     except Exception as e:
         print(f"ERROR: {e}")
         raise HTTPException(500, detail=f"Extraction failed: {str(e)}")
 
-    # 5. Simplify Output Type (Map long MIME to short name)
     type_mapping = {
         "application/pdf": "pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
         "text/csv": "csv",
         "text/plain": "txt",
-        "image/png": "png",
-        "image/jpeg": "jpg",
-        "text/html": "html"
+        "image/png": "png", "image/jpeg": "jpg", "text/html": "html"
     }
-    simple_type = type_mapping.get(mime_type, mime_type)
-
-    # 6. Return Response
+    
     return DocumentResponse(
         filename=file.filename,
-        file_type=simple_type,
+        file_type=type_mapping.get(mime_type, mime_type),
         processing_time_ms=round((time.time() - start_time) * 1000, 2),
         content=content
     )

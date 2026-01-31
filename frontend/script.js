@@ -1,18 +1,15 @@
 // --- CONFIGURATION ---
-// Priority: 1. Railway, 2. Render
-// Note: Localhost is excluded from auto-check to prevent CORS errors in production.
 const CANDIDATE_URLS = [
     "https://fileextractor-production.up.railway.app", // 🏆 Primary
     "https://text-extractor.onrender.com"               // 🛡️ Backup
 ];
 
 let dropZone, fileInput, fileInfo, fileName, extractBtn, resultsArea, resultsList, btnSpinner, btnContent, apiUrlInput, toggleConfig, configPanel;
-let currentFiles = []; // 🟢 Supports Multiple Files
+let currentFiles = []; 
 let activeApiUrl = ""; 
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Get DOM Elements
     dropZone = document.getElementById('dropZone');
     fileInput = document.getElementById('fileInput');
     fileInfo = document.getElementById('fileInfo');
@@ -26,46 +23,52 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleConfig = document.getElementById('toggleConfig');
     configPanel = document.getElementById('configPanel');
 
-    // 2. Attach Listeners
     setupEventListeners();
-
-    // 3. Start Server Hunt
     findActiveBackend();
 });
 
-// --- 🚀 SMART SERVER DETECTION ---
+// --- 🚀 SMART SERVER WAKE-UP ---
 async function findActiveBackend() {
     const statusIcon = document.querySelector('.fa-server'); 
-    apiUrlInput.placeholder = "Connecting to server...";
+    const statusText = document.querySelector('#configPanel small'); 
+    
+    apiUrlInput.placeholder = "Waking up server (wait 60s)...";
     statusIcon.style.color = "orange";
+    statusIcon.className = "fa-solid fa-server fa-beat"; 
+    
+    const pollServer = async (url) => {
+        const maxRetries = 30; // 60s max wait
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                if (statusText) statusText.textContent = `Attempt ${i+1}/${maxRetries}: Pinging server...`;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000); 
+                const response = await fetch(`${url}/`, { method: 'GET', signal: controller.signal });
+                clearTimeout(timeoutId);
 
-    const checks = CANDIDATE_URLS.map(async (url) => {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-            
-            // Check Root "/" endpoint (Backend must have @app.get("/"))
-            const response = await fetch(`${url}/`, { method: 'GET', signal: controller.signal });
-            clearTimeout(timeoutId);
-
-            if (response.ok) return url;
-            throw new Error(`Status: ${response.status}`);
-        } catch (err) {
-            throw err; 
+                if (response.ok) return url; 
+            } catch (err) {
+                await new Promise(r => setTimeout(r, 2000));
+            }
         }
-    });
+        throw new Error(`Server at ${url} did not wake up.`);
+    };
 
     try {
-        const winner = await Promise.any(checks);
+        const winner = await Promise.any(CANDIDATE_URLS.map(pollServer));
         activeApiUrl = winner;
         apiUrlInput.value = winner; 
-        statusIcon.style.color = "#10b981"; // Green
-        console.log(`✅ Connected to: ${winner}`);
+        statusIcon.style.color = "#10b981"; 
+        statusIcon.className = "fa-solid fa-server"; 
+        if (statusText) statusText.textContent = "Server Active & Connected";
+        console.log(`✅ Server woke up: ${winner}`);
     } catch (error) {
         console.error("❌ No active backend found.");
-        statusIcon.style.color = "#ef4444"; // Red
+        statusIcon.style.color = "#ef4444"; 
+        statusIcon.className = "fa-solid fa-server";
         apiUrlInput.value = ""; 
-        apiUrlInput.placeholder = "Enter URL manually";
+        apiUrlInput.placeholder = "Server failed to wake up.";
+        if (statusText) statusText.textContent = "Connection failed. Check logs.";
     }
 }
 
@@ -73,27 +76,19 @@ async function findActiveBackend() {
 function setupEventListeners() {
     toggleConfig.addEventListener('click', () => configPanel.classList.toggle('collapsed'));
 
-    // Drag & Drop / Browse Logic
     dropZone.addEventListener('click', (e) => {
         if (e.target !== fileInput && !e.target.classList.contains('browse-btn')) {
-            fileInput.value = ''; // 🟢 Clear input to allow re-selecting same file
+            fileInput.value = ''; 
             fileInput.click();
         }
     });
     
-    // Explicit browse button support
     const browseBtn = dropZone.querySelector('.browse-btn');
     if(browseBtn) {
-        browseBtn.addEventListener('click', (e) => {
-             e.stopPropagation();
-             fileInput.value = '';
-             fileInput.click();
-        });
+        browseBtn.addEventListener('click', (e) => { e.stopPropagation(); fileInput.value = ''; fileInput.click(); });
     }
 
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length) handleFiles(e.target.files);
-    });
+    fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFiles(e.target.files); });
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
@@ -113,13 +108,12 @@ function setupEventListeners() {
         if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
     });
 
-    // --- BATCH EXTRACTION QUEUE ---
     extractBtn.addEventListener('click', async () => {
         if (currentFiles.length === 0) return;
 
         let rawUrl = apiUrlInput.value.trim() || activeApiUrl;
         if (!rawUrl) {
-            alert("No server connected! Please enter a URL in settings.");
+            alert("No server connected! Please wait for wake-up.");
             return;
         }
 
@@ -128,35 +122,36 @@ function setupEventListeners() {
 
         setLoading(true);
         resultsArea.style.display = 'block'; 
-        resultsList.innerHTML = ''; // Clear old results
+        resultsList.innerHTML = ''; 
 
-        // 🔄 Process Loop: File by File
         for (let i = 0; i < currentFiles.length; i++) {
             const file = currentFiles[i];
-            
-            // Update UI
             btnContent.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing ${i + 1}/${currentFiles.length}...`;
             
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                const response = await fetch(endpoint, { method: 'POST', body: formData });
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000); 
+
+                const response = await fetch(endpoint, { 
+                    method: 'POST', body: formData, signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
                 if (!response.ok) {
                     const err = await response.json().catch(() => ({}));
-                    throw new Error(err.detail || 'Server Error');
+                    throw new Error(JSON.stringify({ status: response.status, msg: err.detail || 'Server Error' }));
                 }
                 const data = await response.json();
                 renderResultCard(data, file.name);
             } catch (error) {
-                renderErrorCard(file.name, error.message);
+                renderErrorCard(file.name, error);
             }
         }
 
-        // Finish State
         btnContent.innerHTML = `<i class="fa-solid fa-check"></i> Done`;
-        
-        // 🟢 Reset Logic: After 2s, user can upload again
         setTimeout(() => {
             setLoading(false);
             btnContent.innerHTML = `<i class="fa-solid fa-bolt"></i> Extract Text`;
@@ -194,39 +189,125 @@ function setLoading(isLoading) {
     }
 }
 
+// ✅ NEW: Result Card with Show More + Copy
 function renderResultCard(data, originalName) {
-    // Combine text chunks
     const fullText = data.content.map(u => u.text).join('\n\n');
+    const isLong = fullText.length > 600;
     
+    const shortText = isLong ? fullText.substring(0, 600) + "..." : fullText;
+
     const card = document.createElement('div');
     card.className = 'page-card';
-    card.style.borderLeft = "4px solid #10b981"; // Green success border
-    
-    // Truncate logic for UI (Full text is in the HTML though)
-    const displayText = fullText.length > 2000 
-        ? fullText.substring(0, 2000) + "\n\n... [Text truncated for display]" 
-        : fullText;
+    card.style.borderLeft = "4px solid #10b981"; 
+
+    const escapedText = fullText.replace(/"/g, '&quot;');
 
     card.innerHTML = `
         <div class="page-header">
             <span class="page-title"><i class="fa-regular fa-file-lines"></i> ${originalName}</span>
-            <span class="page-badge">${data.processing_time_ms}ms</span>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <span class="page-badge">${data.processing_time_ms}ms</span>
+                <button class="copy-btn" title="Copy to Clipboard" data-text="${escapedText}">
+                    <i class="fa-regular fa-copy"></i>
+                </button>
+            </div>
         </div>
-        <div class="page-content">${displayText}</div>
+        <div class="page-content">
+            <span class="text-content">${shortText.replace(/\n/g, '<br>')}</span>
+            ${isLong ? `
+                <button class="read-more-btn">
+                    <i class="fa-solid fa-expand"></i> Show Full Text
+                </button>
+            ` : ''}
+        </div>
+        <div class="full-text-storage" style="display:none;">${fullText.replace(/\n/g, '<br>')}</div>
     `;
+
+    // Copy Logic
+    const copyBtn = card.querySelector('.copy-btn');
+    copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(fullText);
+        copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        setTimeout(() => copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>', 2000);
+    });
+
+    // Show More Logic
+    if (isLong) {
+        const btn = card.querySelector('.read-more-btn');
+        const contentSpan = card.querySelector('.text-content');
+        const fullContent = card.querySelector('.full-text-storage').innerHTML;
+        
+        btn.addEventListener('click', () => {
+            if (btn.innerText.includes("Show Full")) {
+                contentSpan.innerHTML = fullContent;
+                btn.innerHTML = '<i class="fa-solid fa-compress"></i> Collapse Text';
+                btn.style.background = 'transparent';
+                btn.style.border = '1px dashed var(--text-secondary)';
+                btn.style.color = 'var(--text-secondary)';
+            } else {
+                contentSpan.innerHTML = shortText.replace(/\n/g, '<br>');
+                btn.innerHTML = '<i class="fa-solid fa-expand"></i> Show Full Text';
+                btn.removeAttribute('style');
+            }
+        });
+    }
+
     resultsList.appendChild(card);
 }
 
-function renderErrorCard(filename, errorMsg) {
+// ✅ NEW: Error Card with Supported Types
+function renderErrorCard(filename, errorObj) {
+    let title = "Extraction Failed";
+    let detail = "An unexpected error occurred.";
+    let icon = "fa-triangle-exclamation";
+    
+    let errorMsg = errorObj.message;
+    let status = 0;
+
+    try {
+        const parsed = JSON.parse(errorMsg);
+        if(parsed.status) {
+            status = parsed.status;
+            errorMsg = parsed.msg;
+        }
+    } catch(e) {}
+
+    if (errorObj.name === 'AbortError') {
+        title = "Request Timeout";
+        detail = "The file took too long (>60s). Try a smaller file.";
+        icon = "fa-hourglass-end";
+    } else if (status === 413) {
+        title = "File Too Large";
+        detail = "The file exceeds the server's size limit.";
+        icon = "fa-weight-hanging";
+    } else if (status === 422 || status === 400) {
+        title = "Unsupported Format";
+        detail = errorMsg; 
+        icon = "fa-file-circle-xmark";
+    } else if (status === 500) {
+        title = "Server Error";
+        detail = "The extraction engine crashed. The file might be corrupt.";
+        icon = "fa-bomb";
+    } else if (errorMsg.includes("Failed to fetch")) {
+        title = "Network Error";
+        detail = "Could not reach the server. Is it awake?";
+        icon = "fa-wifi";
+    }
+
     const card = document.createElement('div');
     card.className = 'page-card';
-    card.style.borderLeft = "4px solid #ef4444"; // Red error border
+    card.style.borderLeft = "4px solid #ef4444"; 
+    
     card.innerHTML = `
         <div class="page-header">
-            <span class="page-title" style="color: #ef4444">${filename}</span>
-            <span class="page-badge">FAILED</span>
+            <span class="page-title" style="color: #ef4444">
+                <i class="fa-solid ${icon}"></i> ${filename}
+            </span>
+            <span class="page-badge" style="background: #fee2e2; color: #ef4444;">${title}</span>
         </div>
-        <div class="page-content">Error: ${errorMsg}. Please check file format or server logs.</div>
+        <div class="page-content" style="color: #cbd5e1;">
+            <p style="margin-bottom: 0.5rem;"><strong>Reason:</strong> ${detail}</p>
+        </div>
     `;
     resultsList.appendChild(card);
 }
