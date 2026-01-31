@@ -2,9 +2,8 @@
 
 // --- CONFIGURATION ---
 const CANDIDATE_URLS = [
-    "https://fileextractor-production.up.railway.app" ,
-    "https://file-extractor.onrender.com"
-
+    "https://fileextractor-production.up.railway.app", // Primary (Railway)
+    "https://file-extractor.onrender.com"               // Backup (Render)
 ];
 
 let dropZone, fileInput, fileInfo, fileName, extractBtn, resultsArea, resultsList, btnSpinner, btnContent, apiUrlInput, toggleConfig, configPanel;
@@ -41,10 +40,12 @@ async function findActiveBackend() {
         const maxRetries = 30; 
         for (let i = 0; i < maxRetries; i++) {
             try {
-                if (statusText) statusText.textContent = `Attempt ${i+1}/${maxRetries}: Pinging server...`;
+                if (statusText) statusText.textContent = `Pinging server... (Attempt ${i+1}/${maxRetries})`;
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 3000); 
-                const response = await fetch(`${url}/`, { method: 'GET', signal: controller.signal });
+                // Ensure no double slashes if URL already has one
+                const checkUrl = url.endsWith('/') ? url : `${url}/`;
+                const response = await fetch(checkUrl, { method: 'GET', signal: controller.signal });
                 clearTimeout(timeoutId);
 
                 if (response.ok) return url; 
@@ -56,13 +57,33 @@ async function findActiveBackend() {
     };
 
     try {
-        const winner = await Promise.any(CANDIDATE_URLS.map(pollServer));
+        // --- 🚀 PRIORITY LOGIC ---
+        // 1. Start polling Railway immediately
+        const railwayTask = pollServer(CANDIDATE_URLS[0]);
+
+        // 2. Start polling Render only after a 5-second grace period for Railway
+        const renderTask = new Promise((resolve, reject) => {
+            setTimeout(async () => {
+                try {
+                    const res = await pollServer(CANDIDATE_URLS[1]);
+                    resolve(res);
+                } catch (e) {
+                    reject(e);
+                }
+            }, 5000); // 5-second head start for Railway
+        });
+
+        // Use the first one that successfully responds
+        const winner = await Promise.any([railwayTask, renderTask]);
+        
         activeApiUrl = winner;
         apiUrlInput.value = winner; 
         statusIcon.style.color = "#10b981"; 
         statusIcon.className = "fa-solid fa-server"; 
-        if (statusText) statusText.textContent = "Server Active & Connected";
+        if (statusText) statusText.textContent = `Connected to: ${winner.includes('railway') ? 'Railway (Primary)' : 'Render (Backup)'}`;
+        console.log(`✅ Server woke up: ${winner}`);
     } catch (error) {
+        console.error("❌ No active backend found.");
         statusIcon.style.color = "#ef4444"; 
         statusIcon.className = "fa-solid fa-server";
         apiUrlInput.value = ""; 
@@ -71,6 +92,7 @@ async function findActiveBackend() {
     }
 }
 
+// --- EVENT LISTENERS ---
 function setupEventListeners() {
     toggleConfig.addEventListener('click', () => configPanel.classList.toggle('collapsed'));
 
@@ -157,6 +179,7 @@ function setupEventListeners() {
     });
 }
 
+// --- HELPER FUNCTIONS ---
 function handleFiles(files) {
     currentFiles = Array.from(files);
     fileName.textContent = `${currentFiles.length} file(s) selected`;
@@ -259,7 +282,6 @@ function renderResultCard(data, originalName) {
             if (btn.innerText.includes("Show Full")) {
                 contentSpan.innerHTML = fullContentStorage.innerHTML;
                 btn.innerHTML = '<i class="fa-solid fa-compress"></i> Collapse Text';
-                // Toggle prominent styling when expanded
                 btn.classList.add('collapsed-mode');
             } else {
                 contentSpan.innerHTML = shortText.replace(/\n/g, '<br>');
