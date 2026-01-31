@@ -12,3 +12,4 @@ pillow
 pandas
 beautifulsoup4
 pydantic
+openpyxl

@@ -1,14 +1,13 @@
-// --- CONFIGURATION ---
+
 const CANDIDATE_URLS = [
-    "https://fileextractor-production.up.railway.app", // 🏆 Primary
-    "https://text-extractor.onrender.com"               // 🛡️ Backup
+    "https://fileextractor-production.up.railway.app",  
+    "https://file-extractor.onrender.com/"               
 ];
 
 let dropZone, fileInput, fileInfo, fileName, extractBtn, resultsArea, resultsList, btnSpinner, btnContent, apiUrlInput, toggleConfig, configPanel;
 let currentFiles = []; 
 let activeApiUrl = ""; 
 
-// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
     dropZone = document.getElementById('dropZone');
     fileInput = document.getElementById('fileInput');
@@ -27,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
     findActiveBackend();
 });
 
-// --- 🚀 SMART SERVER WAKE-UP ---
 async function findActiveBackend() {
     const statusIcon = document.querySelector('.fa-server'); 
     const statusText = document.querySelector('#configPanel small'); 
@@ -37,7 +35,7 @@ async function findActiveBackend() {
     statusIcon.className = "fa-solid fa-server fa-beat"; 
     
     const pollServer = async (url) => {
-        const maxRetries = 30; // 60s max wait
+        const maxRetries = 30; 
         for (let i = 0; i < maxRetries; i++) {
             try {
                 if (statusText) statusText.textContent = `Attempt ${i+1}/${maxRetries}: Pinging server...`;

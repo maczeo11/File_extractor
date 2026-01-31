@@ -6,13 +6,12 @@ class Location(BaseModel):
     type: Literal["page", "row", "pixel_box"]
     number: Optional[int] = None
     sheet: Optional[str] = None
-    # For OCR bounding boxes (x, y, width, height) if needed later
     coordinates: Optional[List[int]] = None 
 
 class ExtractedUnit(BaseModel):
     """The atomic unit of extracted data"""
     text: str
-    source: str  # e.g., "page_1" or "sheet_financials"
+    source: str   
     location: Location
 
 class DocumentResponse(BaseModel):

@@ -12,7 +12,6 @@ from app.extractors.tables import TableExtractor
 from app.extractors.images import ImageExtractor
 from app.extractors.web import HTMLExtractor
 
-# --- 🛠️ TESSERACT CONFIGURATION ---
 if sys.platform.startswith('win'):
     tesseract_base_path = r'C:\Program Files\Tesseract-OCR'
     executable_path = os.path.join(tesseract_base_path, 'tesseract.exe')
@@ -24,20 +23,18 @@ if sys.platform.startswith('win'):
     else:
         print("⚠️ WARNING: Tesseract.exe not found on Windows.")
 
-# --- APP DEFINITION ---
 app = FastAPI(title="Universal Text Extractor API")
 
 #
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],     # ✅ Allows all domains (Railway, Localhost, etc.)
-    allow_credentials=False, # ✅ MUST be False when origins is ["*"]
-    allow_methods=["*"],     # ✅ Allows all methods (POST, GET, OPTIONS)
-    allow_headers=["*"],     # ✅ Allows all headers
+    allow_origins=["*"],      
+    allow_credentials=False, 
+    allow_methods=["*"],     
+    allow_headers=["*"],     
 )
-
-# Strategy Map
+#THIS IS USED TO MAP EACH FILE TYPE TO RESPECTIVE METHODS
 EXTRACTOR_MAP = {
     "application/pdf": PDFExtractor,
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": WordExtractor,
@@ -50,22 +47,22 @@ EXTRACTOR_MAP = {
     "image/tiff": ImageExtractor,
     "text/html": HTMLExtractor
 }
-
+#THIS IS THE MAIN ROUTE
 @app.get("/")
 def health_check():
     return {"status": "active", "service": "text-extractor-v1"}
 
+
 @app.post("/api/extract", response_model=DocumentResponse)
 def extract_file(file: UploadFile):
     start_time = time.time()
-    
-    # 1. Read File
+    #REASDS THE FILE
     try:
         file_bytes = file.file.read()
     except Exception:
         raise HTTPException(status_code=400, detail="Corrupt or unreadable file")
 
-    # 2. Detect Type
+    #  Detect Type
     try:
         mime_type = magic.from_buffer(file_bytes, mime=True)
     except Exception:
@@ -75,7 +72,6 @@ def extract_file(file: UploadFile):
 
     extractor_class = EXTRACTOR_MAP.get(mime_type)
     
-    # 3. Fallback Logic & Error Handling
     if not extractor_class or mime_type == "application/octet-stream":
         lower_name = file.filename.lower()
         if lower_name.endswith('.docx'):
@@ -96,15 +92,13 @@ def extract_file(file: UploadFile):
         elif lower_name.endswith(('.png', '.jpg', '.jpeg')):
              extractor_class = ImageExtractor
              mime_type = "image/png"
-        else:
-            # ✅ EXPLICIT SUPPORTED LIST
+        else: 
             supported_formats = "PDF, DOCX, XLSX, CSV, TXT, HTML, PNG, JPG"
             raise HTTPException(
                 status_code=400, 
                 detail=f"Unsupported format: {mime_type}. Supported types: {supported_formats}"
             )
 
-    # 4. Extract
     try:
         extractor = extractor_class(file_bytes, file.filename)
         content = extractor.extract()
