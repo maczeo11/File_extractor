@@ -3,12 +3,6 @@
 
 > **A production-grade ETL pipeline that transforms unstructured documents (PDFs, images, spreadsheets, Word files, and web pages) into clean, structured JSON—solving the "Dark Data" problem for developers and non-technical teams alike.**
 
-![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
-![Backend](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)
-![Frontend](https://img.shields.io/badge/Frontend-Vanilla_JS-F7DF1E?logo=javascript)
-![Pattern](https://img.shields.io/badge/Arch-Strategy%20Pattern-orange)
-![License](https://img.shields.io/badge/License-MIT-blue)
-![Tests](https://img.shields.io/badge/Tests-Pytest%20%7C%2098%25%20Coverage-success)
 
 ---
 
@@ -19,14 +13,9 @@
 - [Technology Stack](#-technology-stack)
 - [Installation & Setup](#-installation--setup)
 - [API Reference](#-api-reference)
-- [Frontend Features](#-frontend-features)
-- [Performance & Benchmarks](#-performance--benchmarks)
 - [Deployment Guide](#-deployment-guide)
 - [Security Considerations](#-security-considerations)
 - [Testing Strategy](#-testing-strategy)
-- [Use Cases](#-real-world-use-cases)
-- [Contributing](#-contributing)
-- [Roadmap](#-roadmap)
 - [License](#-license)
 
 ---
@@ -111,12 +100,6 @@ def preprocess_image(image_bytes: bytes) -> bytes:
     denoised = cv2.fastNlMeansDenoising(binary, h=10)      # Step 3: Noise reduction
     return cv2.imencode('.png', denoised)[1].tobytes()
 ```
-**Accuracy Impact**:  
-| Document Type | Raw Tesseract | With Preprocessing | Improvement |
-|---------------|---------------|--------------------|-------------|
-| Low-contrast scan | 68% | 92% | +24% |
-| Shadowed receipt | 54% | 87% | +33% |
-| Handwritten notes | 41% | 63% | +22% |
 
 ### Resource Management: Smart Queue
 Frontend batches files into a sequential queue to prevent OOM crashes on constrained environments:
@@ -267,38 +250,6 @@ curl -X POST http://localhost:8000/api/extract \
 
 ---
 
-## 💻 Frontend Features
-
-Open `frontend/index.html` directly in any browser (no build step required):
-
-![UI Screenshot](https://via.placeholder.com/800x400/2d3748/ffffff?text=Drag+Files+Here+%E2%86%92+Structured+JSON)
-
-**Key UX Elements:**
-- 📤 **Drag-and-drop zone** with visual feedback on hover
-- 📊 **Per-file progress bars** showing extraction status
-- 🌓 **Automatic dark/light mode** based on OS preference
-- 📋 **One-click copy** of JSON results to clipboard
-- 🔄 **Smart retry** after cold-start detection (up to 60s)
-
----
-
-## ⚡ Performance & Benchmarks
-
-Tested on AWS t3.small (2 vCPU, 2GB RAM) with mixed document batch:
-
-| Document Type | Avg. Size | Extraction Time | Memory Peak |
-|---------------|-----------|-----------------|-------------|
-| Text-based PDF | 1.2 MB | 220 ms | 180 MB |
-| Scanned PDF (OCR) | 3.8 MB | 2.1 s | 410 MB |
-| Excel (10k rows) | 850 KB | 340 ms | 210 MB |
-| Low-quality JPG | 1.5 MB | 1.8 s | 390 MB |
-| HTML page | 240 KB | 95 ms | 110 MB |
-
-**Throughput**: 42 documents/minute sustained (sequential queue)  
-**Cold Start Recovery**: 98% success rate within 45 seconds on serverless platforms
-
----
-
 ## 🚢 Deployment Guide
 
 ### Docker Deployment
@@ -326,36 +277,6 @@ CMD ["uvicorn", "app.main:app", "--host", "0.000", "--port", "8000"]
 ```bash
 docker build -t text-extractor .
 docker run -p 8000:8000 text-extractor
-```
-
-### Serverless Platforms (Railway/Render)
-1. Create new service → "Deploy from GitHub repo"
-2. Set build command: `pip install -r requirements.txt`
-3. Set start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-4. Add environment variables (see [Environment Variables](#-environment-variables))
-5. **Critical**: Enable "Prevent sleep" or set minimum instances = 1 to avoid cold starts
-
----
-
-## 🔒 Security Considerations
-
-| Risk | Mitigation |
-|------|------------|
-| **Malicious file uploads** | MIME validation + extension whitelist (`pdf`, `png`, `xlsx`, etc.) |
-| **Path traversal** | All filenames sanitized via `secure_filename()` pattern |
-| **OCR injection attacks** | Tesseract runs in isolated subprocess with timeout enforcement |
-| **Memory exhaustion** | Sequential processing + 15MB default upload cap |
-| **Data leakage** | No persistent storage—all files processed in-memory and discarded |
-
-**Recommendation for production**:  
-Place behind reverse proxy (Nginx) with:
-```nginx
-# Rate limiting
-limit_req_zone $binary_remote_addr zone=extractor:10m rate=5r/s;
-location /api/extract {
-    limit_req zone=extractor burst=10;
-    client_max_body_size 15M;
-}
 ```
 
 ---
@@ -399,25 +320,6 @@ pytest tests/ -v --cov=app --cov-report=html
 | **Research** | Literature review automation from academic PDFs | Extracted 10k+ papers into searchable knowledge base |
 
 ---
-
-## 🤝 Contributing
-
-We welcome contributions! Please follow this workflow:
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feat/your-feature`)
-3. Implement changes with tests
-4. Run linter: `ruff check . && ruff format .`
-5. Submit PR with:
-   - Clear description of change
-   - Screenshots for UI changes
-   - Test coverage report
-
-**Current priority areas:**
-- [ ] EPUB/MOBI ebook support
-- [ ] Layout analysis (detecting columns/headers in PDFs)
-- [ ] Batch API endpoint (`POST /api/extract/batch`)
-- [ ] Language detection + multi-language OCR
 
 
 
