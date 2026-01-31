@@ -29,12 +29,6 @@ Organizations lose **$3+ trillion annually** due to unstructured "dark data"—d
 | **Low-Quality Images** | Shadows, skew, low contrast reduce OCR accuracy by 40–70% |
 | **Mixed Content** | Documents containing text + tables + images require multi-strategy extraction |
 
-Existing tools either:
-- ❌ Require manual format selection (poor UX)
-- ❌ Crash on edge cases (corrupt files, empty sheets)
-- ❌ Consume excessive memory (parallel OCR tasks)
-- ❌ Lack structured output (raw text dumps without metadata)
-
 ---
 
 ## 💡 Solution Overview
@@ -55,16 +49,6 @@ Every extraction returns normalized JSON with:
   "metadata": { ... }        // Format-specific context
 }
 ```
-
-✅ **Production Hardening**  
-- Cold-start resilience (60s wake-up polling)
-- Memory-safe sequential processing (512MB RAM compatible)
-- Graceful degradation on corrupt files
-- Comprehensive error typing (`UNSUPPORTED_FORMAT`, `OCR_FAILURE`, etc.)
-
-✅ **Zero External Dependencies**  
-Pure Python backend + vanilla JS frontend—no React/Vue build steps. Runs anywhere Python 3.9+ exists.
-
 ---
 
 ## 🏗️ Architecture Deep Dive
