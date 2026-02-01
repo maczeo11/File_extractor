@@ -1,9 +1,10 @@
+#
 from pydantic import BaseModel
 from typing import List, Literal, Union, Optional
 
 class Location(BaseModel):
     """Polymorphic location to handle different file types"""
-    type: Literal["page", "row", "pixel_box"]
+    type: Literal["page", "row", "pixel_box", "tag", "line"]
     number: Optional[int] = None
     sheet: Optional[str] = None
     coordinates: Optional[List[int]] = None 

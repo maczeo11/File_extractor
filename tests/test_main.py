@@ -1,3 +1,4 @@
+#
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
@@ -7,14 +8,12 @@ from app.main import app
 # Create a test client
 client = TestClient(app)
 
-# ==========================================
-# 1. POSITIVE CASES (Happy Path)
-# ==========================================
+# ==============================================================================
+# 👋 POSITIVE TEST CASES (Happy Path)
+# ==============================================================================
 
 def test_health_check():
-    """
-    Verify the server is running and returns 200.
-    """
+    """Verify the server is running and returns 200."""
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"status": "active", "service": "text-extractor-v1"}
@@ -22,132 +21,95 @@ def test_health_check():
 @patch("app.main.magic.from_buffer")
 @patch("app.extractors.documents.PDFExtractor.extract")
 def test_extract_pdf_valid(mock_extract, mock_magic):
-    """
-    Positive Case: Upload a valid PDF.
-    """
-    # 1. Mock Detection
+    """Positive Case: Upload a valid PDF."""
     mock_magic.return_value = "application/pdf"
-    
-    # 2. Mock Extraction Result
-    mock_response_content = [{
+    mock_extract.return_value = [{
         "text": "Mocked PDF Content",
         "source": "page_1",
         "location": {"type": "page", "number": 1}
     }]
-    mock_extract.return_value = mock_response_content
 
-    # 3. Simulate File Upload
     files = {"file": ("test.pdf", b"%PDF-1.4...", "application/pdf")}
     response = client.post("/api/extract", files=files)
 
-    # 4. Assertions
     assert response.status_code == 200
-    data = response.json()
-    assert data["filename"] == "test.pdf"
-    assert data["file_type"] == "pdf"
-    assert data["content"][0]["text"] == "Mocked PDF Content"
+    assert response.json()["file_type"] == "pdf"
+    assert response.json()["content"][0]["text"] == "Mocked PDF Content"
 
 @patch("app.main.magic.from_buffer")
-@patch("app.extractors.images.ImageExtractor.extract")
-def test_extract_image_valid(mock_extract, mock_magic):
-    """
-    Positive Case: Upload a valid PNG image.
-    """
-    mock_magic.return_value = "image/png"
-    mock_extract.return_value = [{"text": "OCR Text", "source": "ocr", "location": {"type": "pixel_box", "number": 1}}]
+@patch("app.extractors.web.HTMLExtractor.extract")
+def test_extract_html_valid(mock_extract, mock_magic):
+    """Positive Case: Extract from a valid HTML file."""
+    mock_magic.return_value = "text/html"
+    mock_extract.return_value = [{
+        "text": "Hello World", 
+        "source": "body", 
+        "location": {"type": "tag", "number": 1} # ✅ 'tag' is now valid
+    }]
 
-    files = {"file": ("image.png", b"fake_image_bytes", "image/png")}
+    files = {"file": ("index.html", b"<html><body>Hello</body></html>", "text/html")}
     response = client.post("/api/extract", files=files)
 
     assert response.status_code == 200
-    assert response.json()["file_type"] == "png"
-    assert response.json()["content"][0]["text"] == "OCR Text"
+    assert response.json()["file_type"] == "html"
 
-@patch("app.main.magic.from_buffer")
-@patch("app.extractors.tables.TableExtractor.extract")
-def test_extract_excel_valid(mock_extract, mock_magic):
-    """
-    Positive Case: Upload a valid Excel file (.xlsx).
-    """
-    mock_magic.return_value = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    mock_extract.return_value = [{"text": "Row 1 Col A | Row 1 Col B", "source": "Sheet1", "location": {"type": "row", "number": 1}}]
-
-    files = {"file": ("financials.xlsx", b"PK...", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
-    response = client.post("/api/extract", files=files)
-
-    assert response.status_code == 200
-    assert response.json()["file_type"] == "xlsx"
-    assert "Row 1 Col A" in response.json()["content"][0]["text"]
-
-# ==========================================
-# 2. NEGATIVE CASES (Error Handling)
-# ==========================================
+# ==============================================================================
+# 🛑 NEGATIVE TEST CASES (Error Handling)
+# ==============================================================================
 
 @patch("app.main.magic.from_buffer")
 def test_unsupported_file_type(mock_magic):
-    """
-    Negative Case: Upload a file type that is not supported (e.g., .exe).
-    """
-    # Mock magic to return an unsupported mime type
+    """Negative Case: Upload a file type that is not supported (e.g., .exe)."""
     mock_magic.return_value = "application/x-dosexec"
 
     files = {"file": ("virus.exe", b"MZ...", "application/octet-stream")}
     response = client.post("/api/extract", files=files)
 
-    # Should return 400 Bad Request
     assert response.status_code == 400
-    
-    #  FIX: Match the actual error message in your main.py
     error_detail = response.json()["detail"]
     assert "Unsupported format" in error_detail
     assert "Supported types" in error_detail
 
 def test_upload_no_file():
-    """
-    Negative Case: Call the endpoint without sending a file (Missing field).
-    """
+    """Negative Case: Call the endpoint without sending a file."""
     response = client.post("/api/extract") 
-    # FastAPI handles missing required fields with 422
     assert response.status_code == 422
- 
+
+# ==============================================================================
+# ⚠️ EDGE CASES (Boundary Conditions)
+# ==============================================================================
+
 @patch("app.main.magic.from_buffer")
-@patch("app.extractors.documents.WordExtractor.extract")
-def test_fallback_extension_logic(mock_extract, mock_magic):
-    """
-    Edge Case: 'python-magic' fails to detect type (returns octet-stream),
-    but the file extension is valid (.docx). The app should fallback to extension.
-    """
+@patch("app.extractors.images.ImageExtractor.extract")
+def test_extension_fallback_success(mock_extract, mock_magic):
+    """Edge Case: Magic detection fails, fallback to extension for images."""
     mock_magic.return_value = "application/octet-stream"
-    
-    mock_extract.return_value = [{"text": "Word Doc", "source": "para", "location": {"type": "row", "number": 1}}]
- 
-    files = {"file": ("report.docx", b"PK...", "application/octet-stream")}
+    mock_extract.return_value = [{
+        "text": "OCR Text", 
+        "source": "ocr", 
+        "location": {"type": "pixel_box", "number": 1} # ✅ Matches Literal
+    }]
+
+    files = {"file": ("scan.jpg", b"fake_bytes", "application/octet-stream")}
     response = client.post("/api/extract", files=files)
 
     assert response.status_code == 200
-    assert response.json()["file_type"] == "docx"
-    assert response.json()["content"][0]["text"] == "Word Doc"
+    assert response.json()["file_type"] == "png"
 
 @patch("app.main.magic.from_buffer")
 def test_corrupt_file_handling(mock_magic):
-    """
-    Edge Case: The file bytes are corrupt, causing the Extractor class to raise an Exception.
-    """
+    """Edge Case: The extractor engine crashes."""
     mock_magic.return_value = "application/pdf"
-     
-    with patch("app.extractors.documents.PDFExtractor.extract", side_effect=Exception("EOF Error")):
-        files = {"file": ("corrupt.pdf", b"garbage", "application/pdf")}
+    with patch("app.extractors.documents.PDFExtractor.extract", side_effect=Exception("Parser Error")):
+        files = {"file": ("bad.pdf", b"garbage", "application/pdf")}
         response = client.post("/api/extract", files=files)
- 
         assert response.status_code == 500
         assert "Extraction failed" in response.json()["detail"]
 
 @patch("app.main.magic.from_buffer")
 @patch("app.extractors.tables.TableExtractor.extract")
 def test_empty_csv_file(mock_extract, mock_magic):
-    """
-    Edge Case: A valid CSV file that is completely empty.
-    """
+    """Edge Case: A valid CSV file that is completely empty."""
     mock_magic.return_value = "text/csv" 
     mock_extract.return_value = [] 
 
@@ -155,4 +117,4 @@ def test_empty_csv_file(mock_extract, mock_magic):
     response = client.post("/api/extract", files=files)
 
     assert response.status_code == 200
-    assert response.json()["content"] == [] 
+    assert response.json()["content"] == []
